@@ -4,20 +4,27 @@ import Combine
 
 // MARK: - Event Service Protocol
 public protocol EventServiceProtocol {
-    func fetchNearbyEvents(location: Coordinate?, offset: Int) async throws -> [Event]
+    func fetchNearbyEvents(location: CLLocation?, offset: Int) async throws -> [Event]
     func fetchEventDetails(id: UUID) async throws -> Event
 }
 
 // MARK: - Event Service Implementation
 public class EventService: EventServiceProtocol {
-    private let session = URLSession.shared
-    private let baseURL = "https://api.soirees-swipe.com/v1" // URL fictive
     
     public init() {}
     
-    public func fetchNearbyEvents(location: Coordinate?, offset: Int = 0) async throws -> [Event] {
-        // Pour la démonstration, retourner des données mockées
-        return createMockEvents()
+    public func fetchNearbyEvents(location: CLLocation?, offset: Int = 0) async throws -> [Event] {
+        // Simule un délai de réseau
+        try await Task.sleep(nanoseconds: 500_000_000) // 0.5 secondes
+        
+        // Retourne les événements mockés avec pagination
+        let allEvents = createMockEvents()
+        let startIndex = offset
+        let endIndex = min(offset + 10, allEvents.count)
+        
+        guard startIndex < allEvents.count else { return [] }
+        
+        return Array(allEvents[startIndex..<endIndex])
     }
     
     public func fetchEventDetails(id: UUID) async throws -> Event {
@@ -56,7 +63,7 @@ public class EventService: EventServiceProtocol {
                     Artist(name: "Amelie Lens", genres: [.techno]),
                     Artist(name: "I Hate Models", genres: [.techno])
                 ],
-                ageRestriction: .eighteen
+                ageRestriction: .eighteenPlus
             ),
             Event(
                 title: "Hip-Hop Session au Supersonic",
@@ -84,7 +91,7 @@ public class EventService: EventServiceProtocol {
                     Artist(name: "Nekfeu", genres: [.hiphop]),
                     Artist(name: "Alpha Wann", genres: [.rap])
                 ],
-                ageRestriction: .eighteen
+                ageRestriction: .eighteenPlus
             ),
             Event(
                 title: "House Music Festival",
@@ -112,64 +119,37 @@ public class EventService: EventServiceProtocol {
                     Artist(name: "Disclosure", genres: [.house]),
                     Artist(name: "CamelPhat", genres: [.techHouse])
                 ],
-                ageRestriction: .eighteen
+                ageRestriction: .eighteenPlus
+            ),
+            Event(
+                title: "Electronic Vibes",
+                description: "Une soirée électronique avec des sons innovants et des visuels époustouflants.",
+                imageURL: "https://example.com/event4.jpg",
+                date: Date().addingTimeInterval(3600 * 24 * 10), // Dans 10 jours
+                venue: Venue(
+                    name: "Rex Club",
+                    address: "5 Boulevard Poissonnière",
+                    city: "Paris",
+                    postalCode: "75002",
+                    coordinate: Coordinate(latitude: 48.8719, longitude: 2.3468),
+                    distance: 3.2
+                ),
+                organizer: Organizer(
+                    name: "Rex Club",
+                    verified: true
+                ),
+                musicGenres: [.electronic, .minimal],
+                ticketInfo: TicketInfo(
+                    minPrice: 20.0,
+                    maxPrice: 30.0
+                ),
+                lineup: [
+                    Artist(name: "Moderat", genres: [.electronic]),
+                    Artist(name: "Max Richter", genres: [.ambient])
+                ],
+                ageRestriction: .eighteenPlus
             )
         ]
-    }
-}
-
-// MARK: - Location Manager
-public class LocationManager: NSObject, ObservableObject {
-    @Published public var currentLocation: CLLocation?
-    @Published public var authorizationStatus: CLAuthorizationStatus = .notDetermined
-    
-    private let locationManager = CLLocationManager()
-    
-    public override init() {
-        super.init()
-        locationManager.delegate = self
-        locationManager.desiredAccuracy = kCLLocationAccuracyBest
-    }
-    
-    public func requestLocationPermission() {
-        locationManager.requestWhenInUseAuthorization()
-    }
-    
-    public func startLocationUpdates() {
-        guard authorizationStatus == .authorizedWhenInUse || authorizationStatus == .authorizedAlways else {
-            return
-        }
-        locationManager.startUpdatingLocation()
-    }
-    
-    public func stopLocationUpdates() {
-        locationManager.stopUpdatingLocation()
-    }
-}
-
-// MARK: - CLLocationManagerDelegate
-extension LocationManager: CLLocationManagerDelegate {
-    public func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
-        currentLocation = locations.last
-    }
-    
-    public func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
-        print("Erreur de géolocalisation: \(error.localizedDescription)")
-    }
-    
-    public func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
-        authorizationStatus = manager.authorizationStatus
-        
-        switch authorizationStatus {
-        case .authorizedWhenInUse, .authorizedAlways:
-            startLocationUpdates()
-        case .denied, .restricted:
-            stopLocationUpdates()
-        case .notDetermined:
-            requestLocationPermission()
-        @unknown default:
-            break
-        }
     }
 }
 
