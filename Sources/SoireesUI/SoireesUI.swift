@@ -60,18 +60,18 @@ public struct SoireesUI {
     /// Configuration de l'apparence globale
     private static func setupAppearance() {
         // Configuration des couleurs d'accent globales
-        UIView.appearance().tintColor = UIColor(DesignTokens.Colors.neonPink)
+        UIView.appearance().tintColor = UIColor(DesignTokens.Colors.primary)
         
         // Configuration de la navigation bar
         let navBarAppearance = UINavigationBarAppearance()
         navBarAppearance.configureWithOpaqueBackground()
-        navBarAppearance.backgroundColor = UIColor(DesignTokens.Colors.nightBlack)
+        navBarAppearance.backgroundColor = UIColor(DesignTokens.Colors.surface)
         navBarAppearance.titleTextAttributes = [
-            .foregroundColor: UIColor(DesignTokens.Colors.pureWhite),
+            .foregroundColor: UIColor(DesignTokens.Colors.textPrimary),
             .font: UIFont.systemFont(ofSize: 22, weight: .semibold)
         ]
         navBarAppearance.largeTitleTextAttributes = [
-            .foregroundColor: UIColor(DesignTokens.Colors.pureWhite),
+            .foregroundColor: UIColor(DesignTokens.Colors.textPrimary),
             .font: UIFont.systemFont(ofSize: 28, weight: .bold)
         ]
         
@@ -82,7 +82,7 @@ public struct SoireesUI {
         // Configuration du tab bar
         let tabBarAppearance = UITabBarAppearance()
         tabBarAppearance.configureWithOpaqueBackground()
-        tabBarAppearance.backgroundColor = UIColor(DesignTokens.Colors.nightBlack)
+        tabBarAppearance.backgroundColor = UIColor(DesignTokens.Colors.surface)
         
         UITabBar.appearance().standardAppearance = tabBarAppearance
         UITabBar.appearance().scrollEdgeAppearance = tabBarAppearance

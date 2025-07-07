@@ -59,7 +59,7 @@ public final class SwipeViewModel: ObservableObject {
         errorMessage = nil
         
         do {
-            let newEvents = try await eventService.fetchEvents(limit: 20, offset: 0)
+            let newEvents = try await eventService.fetchNearbyEvents(location: nil, offset: 0)
             events = newEvents
             currentEventIndex = 0
             hasMoreEvents = !newEvents.isEmpty
@@ -88,16 +88,8 @@ public final class SwipeViewModel: ObservableObject {
         // Feedback haptique immédiat
         DesignTokens.Haptics.impact(.medium).impactOccurred()
         
-        do {
-            // Envoie le like au backend
-            try await eventService.likeEvent(event.id)
-            
-            // Passe à l'événement suivant
-            await moveToNextEvent()
-            
-        } catch {
-            errorMessage = "Erreur lors du like: \(error.localizedDescription)"
-        }
+        // Passe à l'événement suivant
+        await moveToNextEvent()
     }
     
     /// Passe un événement et passe au suivant
@@ -107,16 +99,8 @@ public final class SwipeViewModel: ObservableObject {
         // Feedback haptique plus léger
         DesignTokens.Haptics.impact(.light).impactOccurred()
         
-        do {
-            // Envoie le pass au backend
-            try await eventService.passEvent(event.id)
-            
-            // Passe à l'événement suivant
-            await moveToNextEvent()
-            
-        } catch {
-            errorMessage = "Erreur lors du pass: \(error.localizedDescription)"
-        }
+        // Passe à l'événement suivant
+        await moveToNextEvent()
     }
     
     /// Recharge complètement les événements
@@ -150,7 +134,7 @@ public final class SwipeViewModel: ObservableObject {
         
         do {
             let offset = events.count
-            let newEvents = try await eventService.fetchEvents(limit: 10, offset: offset)
+            let newEvents = try await eventService.fetchNearbyEvents(location: nil, offset: offset)
             
             if newEvents.isEmpty {
                 hasMoreEvents = false
@@ -229,9 +213,7 @@ public enum SwipeError: LocalizedError {
 
 // MARK: - Event Service Protocol
 public protocol EventServiceProtocol {
-    func fetchEvents(limit: Int, offset: Int) async throws -> [Event]
-    func likeEvent(_ eventId: UUID) async throws
-    func passEvent(_ eventId: UUID) async throws
+    func fetchNearbyEvents(location: CLLocation?, offset: Int) async throws -> [Event]
 }
 
 // MARK: - Mock Event Service
@@ -239,7 +221,7 @@ public final class EventService: EventServiceProtocol {
     
     public init() {}
     
-    public func fetchEvents(limit: Int = 20, offset: Int = 0) async throws -> [Event] {
+    public func fetchNearbyEvents(location: CLLocation?, offset: Int) async throws -> [Event] {
         // Simule un délai de réseau
         try await Task.sleep(nanoseconds: 500_000_000) // 0.5 secondes
         
@@ -248,7 +230,7 @@ public final class EventService: EventServiceProtocol {
         var allEvents: [Event] = []
         
         // Génère plus d'événements en variant les données
-        for i in 0..<(limit + offset + 10) {
+        for i in 0..<(offset + 10) {
             let baseIndex = i % baseEvents.count
             var event = baseEvents[baseIndex]
             
@@ -295,22 +277,10 @@ public final class EventService: EventServiceProtocol {
         
         // Retourne la slice demandée
         let startIndex = offset
-        let endIndex = min(offset + limit, allEvents.count)
+        let endIndex = min(offset + 10, allEvents.count)
         
         guard startIndex < allEvents.count else { return [] }
         
         return Array(allEvents[startIndex..<endIndex])
-    }
-    
-    public func likeEvent(_ eventId: UUID) async throws {
-        // Simule l'envoi d'un like au backend
-        try await Task.sleep(nanoseconds: 200_000_000) // 0.2 secondes
-        print("✅ Event \(eventId) liked successfully")
-    }
-    
-    public func passEvent(_ eventId: UUID) async throws {
-        // Simule l'envoi d'un pass au backend
-        try await Task.sleep(nanoseconds: 200_000_000) // 0.2 secondes
-        print("❌ Event \(eventId) passed successfully")
     }
 } 

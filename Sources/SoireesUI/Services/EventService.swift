@@ -32,63 +32,87 @@ public class EventService: EventServiceProtocol {
             Event(
                 title: "Techno Night à La Bellevilloise",
                 description: "Une soirée techno inoubliable avec des DJs internationaux dans le cadre mythique de La Bellevilloise.",
-                imageURL: URL(string: "https://example.com/event1.jpg"),
+                imageURL: "https://example.com/event1.jpg",
                 date: Date().addingTimeInterval(3600 * 24 * 2), // Dans 2 jours
-                location: EventLocation(
+                venue: Venue(
                     name: "La Bellevilloise",
                     address: "19-21 Rue Boyer",
                     city: "Paris",
-                    coordinate: Coordinate(latitude: 48.8566, longitude: 2.3522)
+                    postalCode: "75020",
+                    coordinate: Coordinate(latitude: 48.8566, longitude: 2.3522),
+                    distance: 2.3
+                ),
+                organizer: Organizer(
+                    name: "La Bellevilloise",
+                    verified: true
+                ),
+                musicGenres: [.techno, .electronic],
+                ticketInfo: TicketInfo(
+                    minPrice: 25.0,
+                    maxPrice: 35.0
                 ),
                 lineup: [
-                    Artist(name: "Charlotte de Witte", genre: "Techno"),
-                    Artist(name: "Amelie Lens", genre: "Techno"),
-                    Artist(name: "I Hate Models", genre: "Techno")
+                    Artist(name: "Charlotte de Witte", genres: [.techno]),
+                    Artist(name: "Amelie Lens", genres: [.techno]),
+                    Artist(name: "I Hate Models", genres: [.techno])
                 ],
-                genres: ["Techno", "Electronic"],
-                price: Price(amount: 25.0),
-                ticketURL: URL(string: "https://example.com/tickets/1"),
-                distance: 2.3
+                ageRestriction: .eighteen
             ),
             Event(
                 title: "Hip-Hop Session au Supersonic",
                 description: "Les meilleurs rappeurs français se retrouvent pour une session hip-hop exclusive.",
-                imageURL: URL(string: "https://example.com/event2.jpg"),
+                imageURL: "https://example.com/event2.jpg",
                 date: Date().addingTimeInterval(3600 * 24 * 5), // Dans 5 jours
-                location: EventLocation(
+                venue: Venue(
                     name: "Le Supersonic",
                     address: "9 Rue Biscornet",
                     city: "Paris",
-                    coordinate: Coordinate(latitude: 48.8503, longitude: 2.3672)
+                    postalCode: "75012",
+                    coordinate: Coordinate(latitude: 48.8503, longitude: 2.3672),
+                    distance: 4.1
+                ),
+                organizer: Organizer(
+                    name: "Le Supersonic",
+                    verified: true
+                ),
+                musicGenres: [.hiphop, .rap],
+                ticketInfo: TicketInfo(
+                    minPrice: 30.0,
+                    maxPrice: 40.0
                 ),
                 lineup: [
-                    Artist(name: "Nekfeu", genre: "Hip-Hop"),
-                    Artist(name: "Alpha Wann", genre: "Hip-Hop")
+                    Artist(name: "Nekfeu", genres: [.hiphop]),
+                    Artist(name: "Alpha Wann", genres: [.rap])
                 ],
-                genres: ["Hip-Hop", "Rap"],
-                price: Price(amount: 30.0),
-                ticketURL: URL(string: "https://example.com/tickets/2"),
-                distance: 4.1
+                ageRestriction: .eighteen
             ),
             Event(
                 title: "House Music Festival",
                 description: "Un festival de house music avec les meilleurs DJs de la scène parisienne.",
-                imageURL: URL(string: "https://example.com/event3.jpg"),
+                imageURL: "https://example.com/event3.jpg",
                 date: Date().addingTimeInterval(3600 * 24 * 7), // Dans 7 jours
-                location: EventLocation(
+                venue: Venue(
                     name: "Zigzag Club",
                     address: "32 Rue Marbeuf",
                     city: "Paris",
-                    coordinate: Coordinate(latitude: 48.8698, longitude: 2.3048)
+                    postalCode: "75008",
+                    coordinate: Coordinate(latitude: 48.8698, longitude: 2.3048),
+                    distance: 1.8
+                ),
+                organizer: Organizer(
+                    name: "Zigzag Club",
+                    verified: true
+                ),
+                musicGenres: [.house, .techHouse],
+                ticketInfo: TicketInfo(
+                    minPrice: 35.0,
+                    maxPrice: 45.0
                 ),
                 lineup: [
-                    Artist(name: "Disclosure", genre: "House"),
-                    Artist(name: "CamelPhat", genre: "Tech House")
+                    Artist(name: "Disclosure", genres: [.house]),
+                    Artist(name: "CamelPhat", genres: [.techHouse])
                 ],
-                genres: ["House", "Tech House"],
-                price: Price(amount: 35.0),
-                ticketURL: URL(string: "https://example.com/tickets/3"),
-                distance: 1.8
+                ageRestriction: .eighteen
             )
         ]
     }
@@ -166,7 +190,7 @@ public class SessionStore: ObservableObject {
             name: "Jean Dupont",
             email: "jean.dupont@example.com",
             preferences: UserPreferences(
-                musicGenres: ["Techno", "House", "Hip-Hop"],
+                musicGenres: [.techno, .house, .hiphop],
                 maxDistance: 25.0,
                 maxBudget: 50.0
             )
