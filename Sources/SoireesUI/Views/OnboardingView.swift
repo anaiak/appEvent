@@ -372,62 +372,7 @@ private struct OnboardingSlide: Identifiable {
     ]
 }
 
-// MARK: - Location Manager
-public class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
-    @Published public var currentLocation: CLLocation?
-    @Published public var authorizationStatus: CLAuthorizationStatus = .notDetermined
-    
-    private let locationManager = CLLocationManager()
-    
-    public override init() {
-        super.init()
-        locationManager.delegate = self
-        locationManager.desiredAccuracy = kCLLocationAccuracyBest
-        authorizationStatus = locationManager.authorizationStatus
-    }
-    
-    public func requestPermission() {
-        switch authorizationStatus {
-        case .notDetermined:
-            locationManager.requestWhenInUseAuthorization()
-        case .denied, .restricted:
-            // Redirection vers les paramètres
-            if let settingsUrl = URL(string: UIApplication.openSettingsURLString) {
-                UIApplication.shared.open(settingsUrl)
-            }
-        case .authorizedWhenInUse, .authorizedAlways:
-            startLocationUpdates()
-        @unknown default:
-            break
-        }
-    }
-    
-    private func startLocationUpdates() {
-        guard authorizationStatus == .authorizedWhenInUse || authorizationStatus == .authorizedAlways else {
-            return
-        }
-        locationManager.startUpdatingLocation()
-    }
-    
-    // MARK: - CLLocationManagerDelegate
-    public func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
-        currentLocation = locations.last
-        locationManager.stopUpdatingLocation()
-    }
-    
-    public func locationManager(_ manager: CLLocationManager, didChangeAuthorization status: CLAuthorizationStatus) {
-        authorizationStatus = status
-        
-        switch status {
-        case .authorizedWhenInUse, .authorizedAlways:
-            startLocationUpdates()
-        case .denied, .restricted:
-            currentLocation = nil
-        default:
-            break
-        }
-    }
-}
+// MARK: - Location Manager est maintenant dans Services/LocationManager.swift
 
 // MARK: - Preview
 #Preview("Onboarding") {

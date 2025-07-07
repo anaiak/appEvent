@@ -10,45 +10,6 @@ import CoreLocation
 import UIKit
 #endif
 
-// MARK: - Main Views
-@_exported import struct SwiftUI.SwipeView
-@_exported import struct SwiftUI.EventDetailView
-@_exported import struct SwiftUI.ProfileView
-@_exported import struct SwiftUI.GroupsView
-@_exported import struct SwiftUI.AppSettingsView
-
-// MARK: - Components
-@_exported import struct SwiftUI.EventCardView
-@_exported import struct SwiftUI.GenreChip
-@_exported import struct SwiftUI.SwipeBadge
-
-// MARK: - Models
-@_exported import struct Foundation.Event
-@_exported import struct Foundation.EventLocation
-@_exported import struct Foundation.Artist
-@_exported import struct Foundation.Price
-@_exported import struct Foundation.Group
-@_exported import struct Foundation.User
-@_exported import struct Foundation.UserPreferences
-@_exported import struct Foundation.GroupInvite
-@_exported import struct Foundation.Coordinate
-
-// MARK: - ViewModels
-@_exported import class Combine.SwipeViewModel
-@_exported import class Combine.GroupsViewModel
-
-// MARK: - Services
-@_exported import class Foundation.EventService
-@_exported import class CoreLocation.LocationManager
-@_exported import class Combine.SessionStore
-
-// MARK: - Design System
-@_exported import struct SwiftUI.DesignTokens
-
-// MARK: - Enums
-@_exported import enum Foundation.SwipeDirection
-@_exported import enum Foundation.SwipeError
-
 // MARK: - Module Entry Point
 // Point d'entrée principal du module SoireesUI
 
@@ -97,10 +58,10 @@ public extension Color {
 // MARK: - Typography Extensions  
 public extension Font {
     /// Typographies prédéfinies
-    static let soireesTitle = DesignTokens.Typography.heading1
-    static let soireesHeading = DesignTokens.Typography.heading2
-    static let soireesBody = DesignTokens.Typography.body
-    static let soireesCaption = DesignTokens.Typography.caption
+    static let soireesTitle = DesignTokens.Typography.titleLarge
+    static let soireesHeading = DesignTokens.Typography.titleMedium
+    static let soireesBody = DesignTokens.Typography.bodyMedium
+    static let soireesCaption = DesignTokens.Typography.bodySmall
 }
 
 // MARK: - Mock Data
@@ -120,14 +81,14 @@ public extension Event {
             coordinate: Coordinate(latitude: 48.8283, longitude: 2.3609),
             distance: 2.4
         ),
-        organizer: "Concrete Events",
+        organizer: Organizer(name: "Concrete Events", verified: true),
         musicGenres: [.techno, .house],
         ticketInfo: TicketInfo(minPrice: 25, maxPrice: 35),
         lineup: [
             Artist(name: "Boris Brejcha", genres: [.techno]),
             Artist(name: "Charlotte de Witte", genres: [.techno])
         ],
-        ageRestriction: .eighteen,
+        ageRestriction: .eighteenPlus,
         attendeeCount: 850
     )
 }
@@ -139,6 +100,7 @@ public struct SoireesPreviews {
     /// Événement de démonstration pour les previews
     @MainActor
     public static let mockEvent = Event(
+        id: UUID(),
         title: "Techno Night à La Bellevilloise",
         description: "Une soirée techno inoubliable avec des DJs internationaux dans le cadre mythique de La Bellevilloise.",
         imageURL: "https://example.com/event.jpg",
@@ -164,18 +126,15 @@ public struct SoireesPreviews {
             Artist(name: "Charlotte de Witte", genres: [.techno]),
             Artist(name: "Amelie Lens", genres: [.techno])
         ],
-        ageRestriction: 18
+        ageRestriction: .eighteenPlus,
+        attendeeCount: 150
     )
-    
-    /// Session store de démonstration pour les previews
-    @MainActor
-    public static let mockSessionStore = SessionStore()
     
     /// Configuration pour les previews avec le theme sombre
     public static func darkPreview<Content: View>(@ViewBuilder content: () -> Content) -> some View {
         content()
             .preferredColorScheme(.dark)
-            .background(DesignTokens.Colors.nightBlack)
+            .background(DesignTokens.Colors.backgroundPrimary)
     }
 }
 #endif 
