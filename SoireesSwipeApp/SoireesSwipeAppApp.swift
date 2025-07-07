@@ -11,19 +11,37 @@ import SwiftUI
 struct SoireesSwipeAppApp: App {
     
     init() {
-        // Configuration de l'UI Library
-        SoireesUI.configure()
+        // Configuration basique
     }
     
     var body: some Scene {
         WindowGroup {
-            SoireesUI.makeRootView()
+            ContentView()
                 .preferredColorScheme(.dark) // Force le mode sombre
         }
     }
 }
 
+struct ContentView: View {
+    var body: some View {
+        VStack {
+            Image(systemName: "party.popper")
+                .imageScale(.large)
+                .foregroundStyle(.tint)
+            Text("SoireesSwipeApp")
+                .font(.title)
+                .fontWeight(.bold)
+            Text("Application de soirées")
+                .font(.subtitle)
+                .foregroundColor(.secondary)
+        }
+        .padding()
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color.black)
+    }
+}
+
 // MARK: - Preview
 #Preview {
-    SoireesUI.makeRootView()
+    ContentView()
 } 
