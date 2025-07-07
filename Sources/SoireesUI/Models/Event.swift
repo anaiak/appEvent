@@ -363,11 +363,11 @@ public enum TicketAvailability: String, Codable, Hashable {
     
     public var color: Color {
         switch self {
-        case .available: return .green
-        case .limitedAvailability: return .orange
-        case .soldOut: return .red
-        case .comingSoon: return .blue
-        case .salesEnded: return .gray
+        case .available: return DesignTokens.Colors.successColor
+        case .limitedAvailability: return DesignTokens.Colors.warningColor
+        case .soldOut: return DesignTokens.Colors.errorColor
+        case .comingSoon: return DesignTokens.Colors.neonBlue
+        case .salesEnded: return DesignTokens.Colors.gray600
         }
     }
 }
@@ -394,6 +394,62 @@ public enum AgeRestriction: String, Codable, Hashable {
         case .sixteenPlus: return "🧑"
         case .eighteenPlus: return "🔞"
         case .twentyOnePlus: return "🍺"
+        }
+    }
+}
+
+// MARK: - Computed Properties
+extension Event {
+    /// Date formatée en français
+    public var formattedDate: String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "fr_FR")
+        formatter.dateFormat = "EEEE d MMMM yyyy"
+        return formatter.string(from: date).capitalized
+    }
+    
+    /// Heure formatée
+    public var formattedTime: String {
+        let formatter = DateFormatter()
+        formatter.timeStyle = .short
+        return formatter.string(from: date)
+    }
+    
+    /// Distance formatée
+    public var formattedDistance: String {
+        guard let distance = venue.distance else { return "" }
+        
+        if distance < 1.0 {
+            return String(format: "%.0f m", distance * 1000)
+        } else {
+            return String(format: "%.1f km", distance)
+        }
+    }
+    
+    /// Vérifie si l'événement est aujourd'hui
+    public var isToday: Bool {
+        Calendar.current.isDateInToday(date)
+    }
+    
+    /// Vérifie si l'événement est demain
+    public var isTomorrow: Bool {
+        Calendar.current.isDateInTomorrow(date)
+    }
+    
+    /// Range de prix formaté
+    public var priceRange: String {
+        if ticketInfo.isFree {
+            return "Gratuit"
+        }
+        
+        guard let minPrice = ticketInfo.minPrice else {
+            return "Prix non communiqué"
+        }
+        
+        if let maxPrice = ticketInfo.maxPrice, maxPrice != minPrice {
+            return "\(Int(minPrice))€ - \(Int(maxPrice))€"
+        } else {
+            return "\(Int(minPrice))€"
         }
     }
 }

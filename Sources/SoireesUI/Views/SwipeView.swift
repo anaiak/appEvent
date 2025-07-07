@@ -365,73 +365,8 @@ public struct SwipeView: View {
     }
 }
 
-// MARK: - Placeholder Views (à développer plus tard)
-private struct EventDetailView: View {
-    let event: Event
-    
-    var body: some View {
-        NavigationView {
-            ScrollView {
-                VStack(alignment: .leading, spacing: DesignTokens.Spacing.lg) {
-                    AsyncImage(url: URL(string: event.imageURL)) { image in
-                        image
-                            .resizable()
-                            .aspectRatio(contentMode: .fill)
-                    } placeholder: {
-                        Rectangle()
-                            .fill(DesignTokens.Colors.backgroundSecondary)
-                    }
-                    .frame(height: 300)
-                    .clipped()
-                    
-                    VStack(alignment: .leading, spacing: DesignTokens.Spacing.md) {
-                        Text(event.title)
-                            .font(DesignTokens.Typography.titleFont)
-                            .foregroundStyle(DesignTokens.Colors.pureWhite)
-                        
-                        Text(event.description)
-                            .font(DesignTokens.Typography.bodyFont)
-                            .foregroundStyle(DesignTokens.Colors.gray600)
-                        
-                        // Plus de détails à implémenter...
-                    }
-                    .padding(DesignTokens.Spacing.lg)
-                }
-            }
-            .background(DesignTokens.Colors.nightBlack)
-            .navigationTitle("Détail de l'événement")
-            .navigationBarTitleDisplayMode(.inline)
-        }
-    }
-}
-
-private struct ProfileView: View {
-    var body: some View {
-        NavigationView {
-            Text("Profil utilisateur")
-                .font(DesignTokens.Typography.titleFont)
-                .foregroundStyle(DesignTokens.Colors.pureWhite)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(DesignTokens.Colors.nightBlack)
-                .navigationTitle("Profil")
-                .navigationBarTitleDisplayMode(.inline)
-        }
-    }
-}
-
-private struct GroupsView: View {
-    var body: some View {
-        NavigationView {
-            Text("Groupes d'amis")
-                .font(DesignTokens.Typography.titleFont)
-                .foregroundStyle(DesignTokens.Colors.pureWhite)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(DesignTokens.Colors.nightBlack)
-                .navigationTitle("Groupes")
-                .navigationBarTitleDisplayMode(.inline)
-        }
-    }
-}
+// MARK: - Les vraies vues ProfileView et GroupsView sont maintenant dans leurs fichiers séparés
+// EventDetailView est définie dans EventDetailView.swift
 
 // MARK: - Preview
 #Preview("Swipe View") {

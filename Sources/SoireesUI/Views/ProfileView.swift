@@ -1,457 +1,274 @@
 import SwiftUI
 
 // MARK: - Profile View
+// Vue de profil utilisateur avec paramètres et préférences
+
 public struct ProfileView: View {
-    @EnvironmentObject private var sessionStore: SessionStore
     @Environment(\.dismiss) private var dismiss
     @State private var showingSettings = false
-    @State private var showingDeleteConfirmation = false
+    @State private var showingPreferences = false
+    @State private var showingAbout = false
+    
+    // Mock user data
+    @State private var userName = "Alex Martin"
+    @State private var userEmail = "alex.martin@example.com"
+    @State private var eventsLiked = 142
+    @State private var eventsAttended = 28
+    @State private var friendsCount = 89
     
     public init() {}
     
     public var body: some View {
         NavigationView {
-            List {
-                // Header Section
-                profileHeaderSection
-                
-                // Préférences
-                preferencesSection
-                
-                // Actions
-                actionsSection
+            ScrollView {
+                VStack(spacing: DesignTokens.Spacing.lg) {
+                    // Header Profile
+                    profileHeaderView
+                    
+                    // Stats Section
+                    statsSection
+                    
+                    // Menu Options
+                    menuSection
+                    
+                    // About Section
+                    aboutSection
+                }
+                .padding(DesignTokens.Spacing.lg)
             }
-            .listStyle(.insetGrouped)
             .background(DesignTokens.Colors.nightBlack)
-            .scrollContentBackground(.hidden)
             .navigationTitle("Profil")
-            .navigationBarTitleDisplayMode(.large)
-            .foregroundColor(DesignTokens.Colors.pureWhite)
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Fermer") {
                         dismiss()
                     }
-                    .foregroundColor(DesignTokens.Colors.pureWhite)
+                    .foregroundStyle(DesignTokens.Colors.neonPink)
                 }
-            }
-            .sheet(isPresented: $showingSettings) {
-                AppSettingsView()
-            }
-            .confirmationDialog(
-                "Supprimer le compte",
-                isPresented: $showingDeleteConfirmation,
-                titleVisibility: .visible
-            ) {
-                Button("Supprimer", role: .destructive) {
-                    deleteAccount()
-                }
-                Button("Annuler", role: .cancel) { }
-            } message: {
-                Text("Cette action est irréversible. Toutes vos données seront supprimées.")
             }
         }
     }
     
-    // MARK: - Profile Header Section
-    private var profileHeaderSection: some View {
-        Section {
-            HStack(spacing: DesignTokens.Spacing.lg) {
-                // Avatar
-                AsyncImage(url: sessionStore.currentUser?.avatarURL) { image in
-                    image
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                } placeholder: {
-                    Image(systemName: "person.fill")
-                        .font(.system(size: 40))
-                        .foregroundColor(DesignTokens.Colors.pureWhite)
-                }
-                .frame(width: 80, height: 80)
-                .background(DesignTokens.Colors.gray600)
-                .clipShape(Circle())
-                .overlay(
+    // MARK: - Profile Header
+    private var profileHeaderView: some View {
+        VStack(spacing: DesignTokens.Spacing.lg) {
+            // Avatar
+            ZStack {
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                DesignTokens.Colors.neonPink,
+                                DesignTokens.Colors.neonBlue
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 100, height: 100)
+                
+                Image(systemName: "person.fill")
+                    .font(.system(size: 50))
+                    .foregroundStyle(DesignTokens.Colors.pureWhite)
+            }
+            
+            // User Info
+            VStack(spacing: DesignTokens.Spacing.sm) {
+                Text(userName)
+                    .font(DesignTokens.Typography.titleFont)
+                    .foregroundStyle(DesignTokens.Colors.pureWhite)
+                
+                Text(userEmail)
+                    .font(DesignTokens.Typography.bodyFont)
+                    .foregroundStyle(DesignTokens.Colors.gray600)
+                
+                // Status badge
+                HStack(spacing: DesignTokens.Spacing.xs) {
                     Circle()
-                        .stroke(DesignTokens.Colors.neonPink, lineWidth: 3)
-                )
-                
-                // Informations utilisateur
-                VStack(alignment: .leading, spacing: DesignTokens.Spacing.sm) {
-                    Text(sessionStore.currentUser?.name ?? "Utilisateur")
-                        .font(DesignTokens.Typography.heading)
-                        .foregroundColor(DesignTokens.Colors.pureWhite)
-                    
-                    if let email = sessionStore.currentUser?.email {
-                        Text(email)
-                            .font(DesignTokens.Typography.body)
-                            .foregroundColor(DesignTokens.Colors.gray600)
-                    }
-                    
-                    Text("\(sessionStore.groups.count) groupes")
-                        .font(DesignTokens.Typography.caption)
-                        .foregroundColor(DesignTokens.Colors.neonBlue)
+                        .fill(DesignTokens.Colors.successColor)
+                        .frame(width: 8, height: 8)
+                    Text("Actif")
+                        .font(DesignTokens.Typography.captionFont)
+                        .foregroundStyle(DesignTokens.Colors.successColor)
                 }
-                
-                Spacer()
             }
-            .padding(.vertical, DesignTokens.Spacing.md)
-            .listRowBackground(DesignTokens.Colors.nightBlack)
         }
+        .padding(.vertical, DesignTokens.Spacing.lg)
     }
     
-    // MARK: - Preferences Section
-    private var preferencesSection: some View {
-        Section("Préférences") {
-            // Genres musicaux
-            NavigationLink(destination: MusicGenresView()) {
-                PreferenceRow(
-                    icon: "music.note",
-                    title: "Genres musicaux",
-                    value: "\(sessionStore.currentUser?.preferences.musicGenres.count ?? 0) sélectionnés",
-                    color: DesignTokens.Colors.neonPink
-                )
-            }
+    // MARK: - Stats Section
+    private var statsSection: some View {
+        HStack(spacing: DesignTokens.Spacing.lg) {
+            StatCard(
+                title: "Likés",
+                value: "\(eventsLiked)",
+                icon: "heart.fill",
+                color: DesignTokens.Colors.neonPink
+            )
             
-            // Rayon de recherche
-            NavigationLink(destination: RadiusSettingsView()) {
-                PreferenceRow(
-                    icon: "location.circle",
-                    title: "Rayon de recherche",
-                    value: "\(Int(sessionStore.currentUser?.preferences.maxDistance ?? 25)) km",
-                    color: DesignTokens.Colors.neonBlue
-                )
-            }
-            
-            // Budget maximum
-            NavigationLink(destination: BudgetSettingsView()) {
-                PreferenceRow(
-                    icon: "eurosign.circle",
-                    title: "Budget maximum",
-                    value: "\(Int(sessionStore.currentUser?.preferences.maxBudget ?? 50)) €",
-                    color: DesignTokens.Colors.neonPink
-                )
-            }
-            
-            // Notifications
-            PreferenceRow(
-                icon: "bell",
-                title: "Notifications",
-                value: sessionStore.currentUser?.preferences.notificationsEnabled == true ? "Activées" : "Désactivées",
+            StatCard(
+                title: "Participés",
+                value: "\(eventsAttended)",
+                icon: "ticket.fill",
                 color: DesignTokens.Colors.neonBlue
             )
+            
+            StatCard(
+                title: "Amis",
+                value: "\(friendsCount)",
+                icon: "person.3.fill",
+                color: DesignTokens.Colors.successColor
+            )
         }
-        .foregroundColor(DesignTokens.Colors.pureWhite)
-        .listRowBackground(DesignTokens.Colors.nightBlack)
     }
     
-    // MARK: - Actions Section
-    private var actionsSection: some View {
-        Section {
-            // Paramètres
-            Button(action: { showingSettings = true }) {
-                PreferenceRow(
-                    icon: "gearshape",
-                    title: "Paramètres",
-                    value: "",
-                    color: DesignTokens.Colors.gray600
-                )
-            }
+    // MARK: - Menu Section
+    private var menuSection: some View {
+        VStack(spacing: DesignTokens.Spacing.sm) {
+            MenuRow(
+                icon: "gearshape.fill",
+                title: "Paramètres",
+                subtitle: "Notifications, compte, confidentialité",
+                iconColor: DesignTokens.Colors.gray600,
+                action: {
+                    showingSettings = true
+                }
+            )
             
-            // Déconnexion
-            Button(action: { sessionStore.signOut() }) {
-                PreferenceRow(
-                    icon: "rectangle.portrait.and.arrow.right",
-                    title: "Se déconnecter",
-                    value: "",
-                    color: DesignTokens.Colors.gray600
-                )
-            }
+            MenuRow(
+                icon: "heart.circle.fill",
+                title: "Mes préférences",
+                subtitle: "Genres musicaux, types d'événements",
+                iconColor: DesignTokens.Colors.neonPink,
+                action: {
+                    showingPreferences = true
+                }
+            )
             
-            // Supprimer le compte
-            Button(action: { showingDeleteConfirmation = true }) {
-                PreferenceRow(
-                    icon: "trash",
-                    title: "Supprimer le compte",
-                    value: "",
-                    color: .red
-                )
-            }
+            MenuRow(
+                icon: "calendar.circle.fill",
+                title: "Mes événements",
+                subtitle: "Historique et événements à venir",
+                iconColor: DesignTokens.Colors.neonBlue,
+                action: {
+                    // TODO: Navigate to events
+                }
+            )
+            
+            MenuRow(
+                icon: "person.2.circle.fill",
+                title: "Mes groupes",
+                subtitle: "Gérer vos groupes d'amis",
+                iconColor: DesignTokens.Colors.successColor,
+                action: {
+                    // TODO: Navigate to groups
+                }
+            )
+            
+            MenuRow(
+                icon: "questionmark.circle.fill",
+                title: "Aide & Support",
+                subtitle: "FAQ, contact, signaler un problème",
+                iconColor: DesignTokens.Colors.warningColor,
+                action: {
+                    showingAbout = true
+                }
+            )
         }
-        .foregroundColor(DesignTokens.Colors.pureWhite)
-        .listRowBackground(DesignTokens.Colors.nightBlack)
     }
     
-    // MARK: - Private Methods
-    private func deleteAccount() {
-        // Implémentation de la suppression du compte
-        sessionStore.signOut()
-        dismiss()
+    // MARK: - About Section
+    private var aboutSection: some View {
+        VStack(spacing: DesignTokens.Spacing.md) {
+            Text("SoireesSwipe v1.0")
+                .font(DesignTokens.Typography.captionFont)
+                .foregroundStyle(DesignTokens.Colors.gray600)
+            
+            Text("Découvrez les meilleures soirées près de chez vous")
+                .font(DesignTokens.Typography.captionFont)
+                .foregroundStyle(DesignTokens.Colors.gray600)
+                .multilineTextAlignment(.center)
+        }
+        .padding(.top, DesignTokens.Spacing.xl)
     }
 }
 
-// MARK: - Preference Row
-struct PreferenceRow: View {
-    let icon: String
+// MARK: - Supporting Views
+
+private struct StatCard: View {
     let title: String
     let value: String
+    let icon: String
     let color: Color
     
     var body: some View {
-        HStack(spacing: DesignTokens.Spacing.lg) {
+        VStack(spacing: DesignTokens.Spacing.sm) {
             Image(systemName: icon)
-                .font(.system(size: 20))
-                .foregroundColor(color)
-                .frame(width: 24, height: 24)
+                .font(.system(size: 24))
+                .foregroundStyle(color)
             
-            VStack(alignment: .leading, spacing: DesignTokens.Spacing.xs) {
-                Text(title)
-                    .font(DesignTokens.Typography.body)
-                    .foregroundColor(DesignTokens.Colors.pureWhite)
+            Text(value)
+                .font(DesignTokens.Typography.titleFont)
+                .foregroundStyle(DesignTokens.Colors.pureWhite)
+            
+            Text(title)
+                .font(DesignTokens.Typography.captionFont)
+                .foregroundStyle(DesignTokens.Colors.gray600)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(DesignTokens.Spacing.md)
+        .background(DesignTokens.Colors.backgroundSecondary)
+        .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.button))
+    }
+}
+
+private struct MenuRow: View {
+    let icon: String
+    let title: String
+    let subtitle: String
+    let iconColor: Color
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: DesignTokens.Spacing.md) {
+                Image(systemName: icon)
+                    .font(.system(size: 24))
+                    .foregroundStyle(iconColor)
+                    .frame(width: 40, height: 40)
+                    .background(
+                        Circle()
+                            .fill(iconColor.opacity(0.2))
+                    )
                 
-                if !value.isEmpty {
-                    Text(value)
-                        .font(DesignTokens.Typography.caption)
-                        .foregroundColor(DesignTokens.Colors.gray600)
+                VStack(alignment: .leading, spacing: DesignTokens.Spacing.xxs) {
+                    Text(title)
+                        .font(DesignTokens.Typography.bodyFont)
+                        .foregroundStyle(DesignTokens.Colors.pureWhite)
+                    
+                    Text(subtitle)
+                        .font(DesignTokens.Typography.captionFont)
+                        .foregroundStyle(DesignTokens.Colors.gray600)
+                        .lineLimit(2)
                 }
-            }
-            
-            Spacer()
-            
-            if !value.isEmpty {
+                
+                Spacer()
+                
                 Image(systemName: "chevron.right")
-                    .font(.system(size: 14))
-                    .foregroundColor(DesignTokens.Colors.gray600)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(DesignTokens.Colors.gray600)
             }
+            .padding(DesignTokens.Spacing.md)
+            .background(DesignTokens.Colors.backgroundSecondary)
+            .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.button))
         }
-        .padding(.vertical, DesignTokens.Spacing.sm)
+        .buttonStyle(PlainButtonStyle())
     }
 }
 
-// MARK: - Music Genres View
-struct MusicGenresView: View {
-    @EnvironmentObject private var sessionStore: SessionStore
-    @State private var selectedGenres: Set<String> = []
-    
-    private let availableGenres = [
-        "Techno", "House", "Hip-Hop", "Rap", "Electronic", "Pop", "Rock",
-        "Jazz", "Blues", "Reggae", "Funk", "Soul", "R&B", "Alternative",
-        "Indie", "Punk", "Metal", "Classical", "World", "Ambient"
-    ]
-    
-    var body: some View {
-        List {
-            ForEach(availableGenres, id: \.self) { genre in
-                GenreToggleRow(
-                    genre: genre,
-                    isSelected: selectedGenres.contains(genre)
-                ) { isSelected in
-                    if isSelected {
-                        selectedGenres.insert(genre)
-                    } else {
-                        selectedGenres.remove(genre)
-                    }
-                }
-            }
-        }
-        .listStyle(.insetGrouped)
-        .background(DesignTokens.Colors.nightBlack)
-        .scrollContentBackground(.hidden)
-        .navigationTitle("Genres musicaux")
-        .navigationBarTitleDisplayMode(.large)
-        .onAppear {
-            selectedGenres = Set(sessionStore.currentUser?.preferences.musicGenres ?? [])
-        }
-        .onDisappear {
-            // Sauvegarder les préférences
-            // sessionStore.updateMusicGenres(Array(selectedGenres))
-        }
-    }
-}
-
-// MARK: - Genre Toggle Row
-struct GenreToggleRow: View {
-    let genre: String
-    let isSelected: Bool
-    let onToggle: (Bool) -> Void
-    
-    var body: some View {
-        HStack {
-            Text(genre)
-                .font(DesignTokens.Typography.body)
-                .foregroundColor(DesignTokens.Colors.pureWhite)
-            
-            Spacer()
-            
-            Toggle("", isOn: .init(
-                get: { isSelected },
-                set: { onToggle($0) }
-            ))
-            .toggleStyle(SwitchToggleStyle(tint: DesignTokens.Colors.neonPink))
-        }
-        .padding(.vertical, DesignTokens.Spacing.sm)
-        .listRowBackground(DesignTokens.Colors.nightBlack)
-    }
-}
-
-// MARK: - Radius Settings View
-struct RadiusSettingsView: View {
-    @EnvironmentObject private var sessionStore: SessionStore
-    @State private var radius: Double = 25.0
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: DesignTokens.Spacing.xl) {
-            VStack(alignment: .leading, spacing: DesignTokens.Spacing.md) {
-                Text("Rayon de recherche")
-                    .font(DesignTokens.Typography.heading)
-                    .foregroundColor(DesignTokens.Colors.pureWhite)
-                
-                Text("Définit la distance maximale pour la recherche d'événements autour de votre position.")
-                    .font(DesignTokens.Typography.body)
-                    .foregroundColor(DesignTokens.Colors.gray600)
-            }
-            
-            VStack(spacing: DesignTokens.Spacing.lg) {
-                HStack {
-                    Text("Distance")
-                        .font(DesignTokens.Typography.body)
-                        .foregroundColor(DesignTokens.Colors.pureWhite)
-                    
-                    Spacer()
-                    
-                    Text("\(Int(radius)) km")
-                        .font(DesignTokens.Typography.body)
-                        .fontWeight(.semibold)
-                        .foregroundColor(DesignTokens.Colors.neonBlue)
-                }
-                
-                Slider(value: $radius, in: 5...100, step: 5)
-                    .accentColor(DesignTokens.Colors.neonBlue)
-            }
-            
-            Spacer()
-        }
-        .padding(DesignTokens.Spacing.xl)
-        .background(DesignTokens.Colors.nightBlack)
-        .navigationTitle("Rayon")
-        .navigationBarTitleDisplayMode(.inline)
-        .onAppear {
-            radius = sessionStore.currentUser?.preferences.maxDistance ?? 25.0
-        }
-        .onDisappear {
-            // Sauvegarder les préférences
-            // sessionStore.updateMaxDistance(radius)
-        }
-    }
-}
-
-// MARK: - Budget Settings View
-struct BudgetSettingsView: View {
-    @EnvironmentObject private var sessionStore: SessionStore
-    @State private var budget: Double = 50.0
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: DesignTokens.Spacing.xl) {
-            VStack(alignment: .leading, spacing: DesignTokens.Spacing.md) {
-                Text("Budget maximum")
-                    .font(DesignTokens.Typography.heading)
-                    .foregroundColor(DesignTokens.Colors.pureWhite)
-                
-                Text("Définit le prix maximum que vous êtes prêt à payer pour un événement.")
-                    .font(DesignTokens.Typography.body)
-                    .foregroundColor(DesignTokens.Colors.gray600)
-            }
-            
-            VStack(spacing: DesignTokens.Spacing.lg) {
-                HStack {
-                    Text("Budget")
-                        .font(DesignTokens.Typography.body)
-                        .foregroundColor(DesignTokens.Colors.pureWhite)
-                    
-                    Spacer()
-                    
-                    Text("\(Int(budget)) €")
-                        .font(DesignTokens.Typography.body)
-                        .fontWeight(.semibold)
-                        .foregroundColor(DesignTokens.Colors.neonPink)
-                }
-                
-                Stepper("", value: $budget, in: 10...200, step: 5)
-                    .labelsHidden()
-            }
-            
-            Spacer()
-        }
-        .padding(DesignTokens.Spacing.xl)
-        .background(DesignTokens.Colors.nightBlack)
-        .navigationTitle("Budget")
-        .navigationBarTitleDisplayMode(.inline)
-        .onAppear {
-            budget = sessionStore.currentUser?.preferences.maxBudget ?? 50.0
-        }
-        .onDisappear {
-            // Sauvegarder les préférences
-            // sessionStore.updateMaxBudget(budget)
-        }
-    }
-}
-
-// MARK: - App Settings View
-public struct AppSettingsView: View {
-    @Environment(\.dismiss) private var dismiss
-    @State private var notificationsEnabled = true
-    
-    public init() {}
-    
-    public var body: some View {
-        NavigationView {
-            List {
-                Section("Notifications") {
-                    Toggle("Activer les notifications", isOn: $notificationsEnabled)
-                        .toggleStyle(SwitchToggleStyle(tint: DesignTokens.Colors.neonPink))
-                }
-                .foregroundColor(DesignTokens.Colors.pureWhite)
-                .listRowBackground(DesignTokens.Colors.nightBlack)
-                
-                Section("Application") {
-                    HStack {
-                        Text("Version")
-                        Spacer()
-                        Text("1.0.0")
-                            .foregroundColor(DesignTokens.Colors.gray600)
-                    }
-                    
-                    Button("Envoyer des commentaires") {
-                        sendFeedback()
-                    }
-                }
-                .foregroundColor(DesignTokens.Colors.pureWhite)
-                .listRowBackground(DesignTokens.Colors.nightBlack)
-            }
-            .listStyle(.insetGrouped)
-            .background(DesignTokens.Colors.nightBlack)
-            .scrollContentBackground(.hidden)
-            .navigationTitle("Paramètres")
-            .navigationBarTitleDisplayMode(.large)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Fermer") {
-                        dismiss()
-                    }
-                    .foregroundColor(DesignTokens.Colors.pureWhite)
-                }
-            }
-        }
-    }
-    
-    private func sendFeedback() {
-        if let url = URL(string: "mailto:feedback@soirees-swipe.com") {
-            UIApplication.shared.open(url)
-        }
-    }
-}
-
-// MARK: - Previews
-#Preview {
+// MARK: - Preview
+#Preview("Profile View") {
     ProfileView()
-        .environmentObject(SessionStore())
+        .preferredColorScheme(.dark)
 } 

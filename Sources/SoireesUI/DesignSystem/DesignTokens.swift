@@ -10,15 +10,15 @@ public struct DesignTokens {
     // MARK: - Colors Palette
     public struct Colors {
         // Couleurs principales selon spec
-        public static let nightBlack = Color(hex: "#0B0B0E")      // Background global
-        public static let neonPink = Color(hex: "#FF2D95")        // Accent like & CTA
-        public static let neonBlue = Color(hex: "#2DF9FF")        // Accent secondaire (groupes)
-        public static let pureWhite = Color(hex: "#FFFFFF")       // Texte principal
-        public static let gray600 = Color(hex: "#7A7A7D")         // Sous-titres / séparateurs
+        public static let nightBlack = Color(red: 0.043, green: 0.043, blue: 0.055)      // Background global
+        public static let neonPink = Color(red: 1.0, green: 0.176, blue: 0.584)        // Accent like & CTA
+        public static let neonBlue = Color(red: 0.176, green: 0.976, blue: 1.0)        // Accent secondaire (groupes)
+        public static let pureWhite = Color(red: 1.0, green: 1.0, blue: 1.0)       // Texte principal
+        public static let gray600 = Color(red: 0.478, green: 0.478, blue: 0.490)         // Sous-titres / séparateurs
         
         // Couleurs dérivées pour l'UI
         public static let backgroundPrimary = nightBlack
-        public static let backgroundSecondary = Color(hex: "#1A1A1E")
+        public static let backgroundSecondary = Color(red: 0.067, green: 0.067, blue: 0.082)
         public static let accentPrimary = neonPink
         public static let accentSecondary = neonBlue
         public static let textPrimary = pureWhite
@@ -32,8 +32,9 @@ public struct DesignTokens {
         // États d'interaction
         public static let likeColor = neonPink
         public static let passColor = gray600
-        public static let successColor = Color(hex: "#30D158")
-        public static let warningColor = Color(hex: "#FF9500")
+        public static let successColor = Color(red: 0.2, green: 0.8, blue: 0.4)
+        public static let warningColor = Color(red: 1.0, green: 0.6, blue: 0.0)
+        public static let errorColor = Color(red: 0.9, green: 0.2, blue: 0.2)
     }
     
     // MARK: - Typography (SF Pro Rounded)
@@ -122,6 +123,33 @@ public struct DesignTokens {
         
         public static let fadeInOut = SwiftUI.Animation.easeInOut(duration: 0.3)
         public static let scaleEffect = SwiftUI.Animation.easeOut(duration: 0.2)
+        
+        // Timings selon spec : InteractiveSpring (response: 0.35, damping: 0.7)
+        public static let interactiveSpring = SwiftUI.Animation.interactiveSpring(
+            response: 0.35,
+            dampingFraction: 0.7
+        )
+        
+        // Animations personnalisées
+        public static let standardSpring = SwiftUI.Animation.spring(
+            response: 0.4,
+            dampingFraction: 0.8
+        )
+        
+        public static let cardSwipe = SwiftUI.Animation.spring(
+            response: 0.35,
+            dampingFraction: 0.7
+        )
+        
+        public static let springBounce = SwiftUI.Animation.spring(
+            response: 0.3,
+            dampingFraction: 0.6
+        )
+        
+        public static let fadeInOut = SwiftUI.Animation.easeInOut(duration: 0.25)
+        
+        // Animation personnalisée pour le scrolling
+        public static let smoothScroll = SwiftUI.Animation.easeOut(duration: 0.6)
     }
     
     // MARK: - Z-Index Layers

@@ -1,588 +1,532 @@
 import SwiftUI
 
 // MARK: - Groups View
+// Vue de gestion des groupes d'amis selon specs design
+
 public struct GroupsView: View {
-    @EnvironmentObject private var sessionStore: SessionStore
     @Environment(\.dismiss) private var dismiss
-    @StateObject private var viewModel = GroupsViewModel()
-    @State private var selectedGroup: Group?
+    @State private var groups: [Group] = Group.mockGroups
     @State private var showingCreateGroup = false
-    @State private var showingJoinGroup = false
+    @State private var selectedGroup: Group?
+    @State private var searchText = ""
     
     public init() {}
     
     public var body: some View {
         NavigationView {
             VStack(spacing: 0) {
-                // Header
-                headerView
+                // Search bar
+                searchBar
                 
-                // Groups Horizontal List
-                groupsListView
-                
-                // Selected Group Feed
-                if let selectedGroup = selectedGroup {
-                    groupFeedView(for: selectedGroup)
+                // Content
+                if filteredGroups.isEmpty {
+                    emptyStateView
                 } else {
-                    emptySelectionView
+                    groupsList
                 }
             }
             .background(DesignTokens.Colors.nightBlack)
-            .navigationBarHidden(true)
-            .sheet(isPresented: $showingCreateGroup) {
-                CreateGroupView()
-                    .environmentObject(sessionStore)
-            }
-            .sheet(isPresented: $showingJoinGroup) {
-                JoinGroupView()
-                    .environmentObject(sessionStore)
-            }
-            .onAppear {
-                if selectedGroup == nil && !sessionStore.groups.isEmpty {
-                    selectedGroup = sessionStore.groups.first
+            .navigationTitle("Groupes")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Fermer") {
+                        dismiss()
+                    }
+                    .foregroundStyle(DesignTokens.Colors.neonPink)
+                }
+                
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(action: {
+                        showingCreateGroup = true
+                    }) {
+                        Image(systemName: "plus")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundStyle(DesignTokens.Colors.neonBlue)
+                    }
                 }
             }
+        }
+        .sheet(isPresented: $showingCreateGroup) {
+            CreateGroupView(onCreateGroup: { newGroup in
+                groups.append(newGroup)
+                showingCreateGroup = false
+            })
+        }
+        .sheet(item: $selectedGroup) { group in
+            GroupDetailView(group: group)
         }
     }
     
-    // MARK: - Header View
-    private var headerView: some View {
-        HStack {
-            Button("Fermer") {
-                dismiss()
-            }
-            .foregroundColor(DesignTokens.Colors.pureWhite)
+    // MARK: - Search Bar
+    private var searchBar: some View {
+        HStack(spacing: DesignTokens.Spacing.sm) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 16))
+                .foregroundStyle(DesignTokens.Colors.gray600)
             
-            Spacer()
+            TextField("Rechercher un groupe...", text: $searchText)
+                .font(DesignTokens.Typography.bodyFont)
+                .foregroundStyle(DesignTokens.Colors.pureWhite)
+                .tint(DesignTokens.Colors.neonPink)
             
-            Text("Groupes")
-                .font(DesignTokens.Typography.title)
-                .foregroundColor(DesignTokens.Colors.pureWhite)
-            
-            Spacer()
-            
-            Menu {
-                Button("Créer un groupe") {
-                    showingCreateGroup = true
+            if !searchText.isEmpty {
+                Button(action: {
+                    searchText = ""
+                }) {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 16))
+                        .foregroundStyle(DesignTokens.Colors.gray600)
                 }
-                
-                Button("Rejoindre un groupe") {
-                    showingJoinGroup = true
-                }
-            } label: {
-                Image(systemName: "plus")
-                    .font(.system(size: 20, weight: .semibold))
-                    .foregroundColor(DesignTokens.Colors.neonPink)
             }
         }
-        .padding(.horizontal, DesignTokens.Spacing.xl)
+        .padding(DesignTokens.Spacing.md)
+        .background(DesignTokens.Colors.backgroundSecondary)
+        .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.button))
+        .padding(.horizontal, DesignTokens.Spacing.lg)
         .padding(.top, DesignTokens.Spacing.md)
     }
     
-    // MARK: - Groups List View
-    private var groupsListView: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            LazyHStack(spacing: DesignTokens.Spacing.lg) {
-                ForEach(sessionStore.groups) { group in
-                    GroupIconView(
-                        group: group,
-                        isSelected: selectedGroup?.id == group.id
-                    ) {
+    // MARK: - Groups List
+    private var groupsList: some View {
+        ScrollView {
+            LazyVStack(spacing: DesignTokens.Spacing.md) {
+                ForEach(filteredGroups) { group in
+                    GroupCard(group: group) {
                         selectedGroup = group
                     }
                 }
             }
-            .padding(.horizontal, DesignTokens.Spacing.xl)
+            .padding(DesignTokens.Spacing.lg)
         }
-        .frame(height: 100)
-        .padding(.vertical, DesignTokens.Spacing.lg)
     }
     
-    // MARK: - Group Feed View
-    private func groupFeedView(for group: Group) -> some View {
-        VStack(alignment: .leading, spacing: DesignTokens.Spacing.lg) {
-            // Group Info Header
-            groupInfoHeader(for: group)
+    // MARK: - Empty State
+    private var emptyStateView: some View {
+        VStack(spacing: DesignTokens.Spacing.xl) {
+            Spacer()
             
-            // Events Grid
-            ScrollView {
-                LazyVGrid(columns: [
-                    GridItem(.flexible()),
-                    GridItem(.flexible())
-                ], spacing: DesignTokens.Spacing.lg) {
-                    ForEach(viewModel.likedEvents) { event in
-                        MiniEventCard(event: event)
-                            .matchedGeometryEffect(
-                                id: event.id,
-                                in: viewModel.namespace
-                            )
-                    }
-                }
-                .padding(.horizontal, DesignTokens.Spacing.xl)
-                .padding(.bottom, DesignTokens.Spacing.xxl)
+            // Illustration
+            ZStack {
+                Image(systemName: "person.3.fill")
+                    .font(.system(size: 80))
+                    .foregroundStyle(DesignTokens.Colors.neonBlue)
+                    .blur(radius: 10)
+                    .opacity(0.6)
+                
+                Image(systemName: "person.3.fill")
+                    .font(.system(size: 80))
+                    .foregroundStyle(DesignTokens.Colors.neonBlue)
             }
+            
+            // Text
+            VStack(spacing: DesignTokens.Spacing.md) {
+                Text(searchText.isEmpty ? "Aucun groupe" : "Aucun résultat")
+                    .font(DesignTokens.Typography.titleFont)
+                    .foregroundStyle(DesignTokens.Colors.pureWhite)
+                
+                Text(searchText.isEmpty ? 
+                     "Créez votre premier groupe pour partager vos soirées préférées avec vos amis !" :
+                     "Aucun groupe ne correspond à votre recherche."
+                )
+                .font(DesignTokens.Typography.bodyFont)
+                .foregroundStyle(DesignTokens.Colors.gray600)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, DesignTokens.Spacing.xl)
+            }
+            
+            // Create button (only for empty state)
+            if searchText.isEmpty {
+                Button(action: {
+                    showingCreateGroup = true
+                }) {
+                    HStack {
+                        Image(systemName: "plus")
+                            .font(DesignTokens.Typography.headingFont)
+                        Text("Créer un groupe")
+                            .font(DesignTokens.Typography.headingFont)
+                    }
+                    .foregroundStyle(DesignTokens.Colors.pureWhite)
+                    .padding(.horizontal, DesignTokens.Spacing.lg)
+                    .padding(.vertical, DesignTokens.Spacing.md)
+                    .background(DesignTokens.Colors.neonBlue)
+                    .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.button))
+                }
+                .padding(.top, DesignTokens.Spacing.lg)
+            }
+            
+            Spacer()
         }
+        .padding(DesignTokens.Spacing.lg)
     }
     
-    // MARK: - Group Info Header
-    private func groupInfoHeader(for group: Group) -> some View {
-        VStack(alignment: .leading, spacing: DesignTokens.Spacing.md) {
-            HStack {
-                VStack(alignment: .leading, spacing: DesignTokens.Spacing.sm) {
-                    Text(group.name)
-                        .font(DesignTokens.Typography.heading)
-                        .foregroundColor(DesignTokens.Colors.pureWhite)
+    // MARK: - Computed Properties
+    private var filteredGroups: [Group] {
+        if searchText.isEmpty {
+            return groups
+        }
+        return groups.filter { group in
+            group.name.localizedCaseInsensitiveContains(searchText) ||
+            group.description?.localizedCaseInsensitiveContains(searchText) == true
+        }
+    }
+}
+
+// MARK: - Group Card
+private struct GroupCard: View {
+    let group: Group
+    let onTap: () -> Void
+    
+    var body: some View {
+        Button(action: onTap) {
+            HStack(spacing: DesignTokens.Spacing.md) {
+                // Group avatar
+                ZStack {
+                    Circle()
+                        .fill(
+                            LinearGradient(
+                                colors: [
+                                    DesignTokens.Colors.neonBlue.opacity(0.8),
+                                    DesignTokens.Colors.neonPink.opacity(0.8)
+                                ],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .frame(width: 60, height: 60)
                     
-                    Text("\(group.memberCount) membres • \(group.likedEventCount) événements likés")
-                        .font(DesignTokens.Typography.caption)
-                        .foregroundColor(DesignTokens.Colors.gray600)
+                    Image(systemName: "person.3.fill")
+                        .font(.system(size: 28))
+                        .foregroundStyle(DesignTokens.Colors.pureWhite)
                 }
                 
-                Spacer()
-                
-                Menu {
-                    Button("Inviter des amis") {
-                        shareInviteLink(for: group)
-                    }
-                    
-                    Button("Paramètres du groupe") {
-                        // Action pour les paramètres
-                    }
-                    
-                    if group.isOwner {
-                        Button("Supprimer le groupe", role: .destructive) {
-                            // Action pour supprimer
+                // Group info
+                VStack(alignment: .leading, spacing: DesignTokens.Spacing.xs) {
+                    HStack {
+                        Text(group.name)
+                            .font(DesignTokens.Typography.headingFont)
+                            .foregroundStyle(DesignTokens.Colors.pureWhite)
+                            .lineLimit(1)
+                        
+                        Spacer()
+                        
+                        if group.isPrivate {
+                            Image(systemName: "lock.fill")
+                                .font(.system(size: 12))
+                                .foregroundStyle(DesignTokens.Colors.warningColor)
                         }
                     }
-                } label: {
-                    Image(systemName: "ellipsis")
-                        .font(.system(size: 18))
-                        .foregroundColor(DesignTokens.Colors.gray600)
-                        .frame(width: 32, height: 32)
-                        .background(
-                            Circle()
-                                .fill(DesignTokens.Colors.gray600.opacity(0.1))
-                        )
-                }
-            }
-            
-            // Members Preview
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: DesignTokens.Spacing.sm) {
-                    ForEach(group.members.prefix(5)) { member in
-                        MemberAvatarView(member: member)
+                    
+                    if let description = group.description {
+                        Text(description)
+                            .font(DesignTokens.Typography.captionFont)
+                            .foregroundStyle(DesignTokens.Colors.gray600)
+                            .lineLimit(2)
                     }
                     
-                    if group.members.count > 5 {
-                        Text("+\(group.members.count - 5)")
-                            .font(DesignTokens.Typography.caption)
-                            .foregroundColor(DesignTokens.Colors.gray600)
-                            .frame(width: 32, height: 32)
-                            .background(
+                    HStack(spacing: DesignTokens.Spacing.lg) {
+                        // Members count
+                        HStack(spacing: DesignTokens.Spacing.xs) {
+                            Image(systemName: "person.fill")
+                                .font(.system(size: 12))
+                                .foregroundStyle(DesignTokens.Colors.neonBlue)
+                            Text("\(group.memberCount) membres")
+                                .font(DesignTokens.Typography.captionFont)
+                                .foregroundStyle(DesignTokens.Colors.gray600)
+                        }
+                        
+                        // Activity indicator
+                        if group.hasRecentActivity {
+                            HStack(spacing: DesignTokens.Spacing.xs) {
                                 Circle()
-                                    .fill(DesignTokens.Colors.gray600.opacity(0.3))
-                            )
+                                    .fill(DesignTokens.Colors.successColor)
+                                    .frame(width: 6, height: 6)
+                                Text("Actif")
+                                    .font(.system(size: 11))
+                                    .foregroundStyle(DesignTokens.Colors.successColor)
+                            }
+                        }
+                        
+                        Spacer()
                     }
                 }
-                .padding(.horizontal, 1)
-            }
-        }
-        .padding(.horizontal, DesignTokens.Spacing.xl)
-    }
-    
-    // MARK: - Empty Selection View
-    private var emptySelectionView: some View {
-        VStack(spacing: DesignTokens.Spacing.xl) {
-            Image(systemName: "person.3")
-                .font(.system(size: 60))
-                .foregroundColor(DesignTokens.Colors.neonBlue)
-            
-            VStack(spacing: DesignTokens.Spacing.md) {
-                Text("Aucun groupe sélectionné")
-                    .font(DesignTokens.Typography.heading)
-                    .foregroundColor(DesignTokens.Colors.pureWhite)
                 
-                Text("Créez votre premier groupe ou rejoignez-en un pour partager vos événements préférés !")
-                    .font(DesignTokens.Typography.body)
-                    .foregroundColor(DesignTokens.Colors.gray600)
-                    .multilineTextAlignment(.center)
+                // Chevron
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(DesignTokens.Colors.gray600)
             }
-            
-            HStack(spacing: DesignTokens.Spacing.lg) {
-                Button("Créer un groupe") {
-                    showingCreateGroup = true
-                }
-                .font(DesignTokens.Typography.body)
-                .foregroundColor(DesignTokens.Colors.pureWhite)
-                .padding(.horizontal, DesignTokens.Spacing.xl)
-                .padding(.vertical, DesignTokens.Spacing.lg)
-                .background(
-                    RoundedRectangle(cornerRadius: DesignTokens.Radius.button)
-                        .fill(DesignTokens.Colors.neonPink)
-                )
-                
-                Button("Rejoindre") {
-                    showingJoinGroup = true
-                }
-                .font(DesignTokens.Typography.body)
-                .foregroundColor(DesignTokens.Colors.neonBlue)
-                .padding(.horizontal, DesignTokens.Spacing.xl)
-                .padding(.vertical, DesignTokens.Spacing.lg)
-                .background(
-                    RoundedRectangle(cornerRadius: DesignTokens.Radius.button)
-                        .stroke(DesignTokens.Colors.neonBlue, lineWidth: 2)
-                )
-            }
+            .padding(DesignTokens.Spacing.md)
+            .background(DesignTokens.Colors.backgroundSecondary)
+            .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.card))
         }
-        .padding(DesignTokens.Spacing.xxl)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-    
-    // MARK: - Private Methods
-    private func shareInviteLink(for group: Group) {
-        let inviteURL = "https://soirees-swipe.com/invite/\(group.inviteCode)"
-        let activityViewController = UIActivityViewController(
-            activityItems: [inviteURL],
-            applicationActivities: nil
-        )
-        
-        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-           let rootViewController = windowScene.windows.first?.rootViewController {
-            rootViewController.present(activityViewController, animated: true)
-        }
-    }
-}
-
-// MARK: - Group Icon View
-struct GroupIconView: View {
-    let group: Group
-    let isSelected: Bool
-    let action: () -> Void
-    
-    var body: some View {
-        Button(action: action) {
-            VStack(spacing: DesignTokens.Spacing.sm) {
-                AsyncImage(url: group.imageURL) { image in
-                    image
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                } placeholder: {
-                    Image(systemName: "person.3.fill")
-                        .font(.system(size: 24))
-                        .foregroundColor(DesignTokens.Colors.neonBlue)
-                }
-                .frame(width: 60, height: 60)
-                .background(DesignTokens.Colors.gray600.opacity(0.3))
-                .clipShape(Circle())
-                .overlay(
-                    Circle()
-                        .stroke(
-                            isSelected ? DesignTokens.Colors.neonPink : DesignTokens.Colors.gray600.opacity(0.3),
-                            lineWidth: isSelected ? 3 : 1
-                        )
-                )
-                
-                Text(group.name)
-                    .font(DesignTokens.Typography.caption)
-                    .foregroundColor(isSelected ? DesignTokens.Colors.neonPink : DesignTokens.Colors.pureWhite)
-                    .lineLimit(1)
-                    .frame(width: 70)
-            }
-        }
-        .scaleEffect(isSelected ? 1.1 : 1.0)
-        .animation(.easeInOut(duration: 0.2), value: isSelected)
-    }
-}
-
-// MARK: - Mini Event Card
-struct MiniEventCard: View {
-    let event: Event
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: DesignTokens.Spacing.sm) {
-            AsyncImage(url: event.imageURL) { image in
-                image
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-            } placeholder: {
-                Rectangle()
-                    .fill(DesignTokens.Colors.gray600.opacity(0.3))
-                    .overlay(
-                        Image(systemName: "photo")
-                            .font(.system(size: 20))
-                            .foregroundColor(DesignTokens.Colors.gray600)
-                    )
-            }
-            .frame(height: 120)
-            .clipped()
-            .cornerRadius(DesignTokens.Radius.button)
-            
-            VStack(alignment: .leading, spacing: DesignTokens.Spacing.xs) {
-                Text(event.title)
-                    .font(DesignTokens.Typography.body)
-                    .fontWeight(.semibold)
-                    .foregroundColor(DesignTokens.Colors.pureWhite)
-                    .lineLimit(2)
-                
-                Text(event.location.name)
-                    .font(DesignTokens.Typography.caption)
-                    .foregroundColor(DesignTokens.Colors.gray600)
-                    .lineLimit(1)
-                
-                HStack {
-                    if let price = event.price {
-                        Text(price.formatted)
-                            .font(DesignTokens.Typography.caption)
-                            .fontWeight(.semibold)
-                            .foregroundColor(DesignTokens.Colors.neonPink)
-                    }
-                    
-                    Spacer()
-                    
-                    Image(systemName: "heart.fill")
-                        .font(.system(size: 12))
-                        .foregroundColor(DesignTokens.Colors.neonPink)
-                }
-            }
-            .padding(.horizontal, DesignTokens.Spacing.sm)
-            .padding(.bottom, DesignTokens.Spacing.sm)
-        }
-        .background(
-            RoundedRectangle(cornerRadius: DesignTokens.Radius.button)
-                .fill(DesignTokens.Colors.nightBlack)
-                .overlay(
-                    RoundedRectangle(cornerRadius: DesignTokens.Radius.button)
-                        .stroke(DesignTokens.Colors.gray600.opacity(0.3), lineWidth: 1)
-                )
-        )
-    }
-}
-
-// MARK: - Member Avatar View
-struct MemberAvatarView: View {
-    let member: User
-    
-    var body: some View {
-        AsyncImage(url: member.avatarURL) { image in
-            image
-                .resizable()
-                .aspectRatio(contentMode: .fill)
-        } placeholder: {
-            Image(systemName: "person.fill")
-                .font(.system(size: 16))
-                .foregroundColor(DesignTokens.Colors.pureWhite)
-        }
-        .frame(width: 32, height: 32)
-        .background(DesignTokens.Colors.gray600)
-        .clipShape(Circle())
-        .overlay(
-            Circle()
-                .stroke(DesignTokens.Colors.nightBlack, lineWidth: 2)
-        )
-    }
-}
-
-// MARK: - Groups View Model
-@MainActor
-public class GroupsViewModel: ObservableObject {
-    @Published public var likedEvents: [Event] = []
-    public let namespace = Namespace().wrappedValue
-    
-    public init() {
-        loadMockLikedEvents()
-    }
-    
-    private func loadMockLikedEvents() {
-        // Données mockées pour la démonstration
-        likedEvents = [
-            Event(
-                title: "Techno Night",
-                description: "Soirée techno",
-                imageURL: URL(string: "https://example.com/event1.jpg"),
-                date: Date(),
-                location: EventLocation(
-                    name: "La Bellevilloise",
-                    address: "Paris",
-                    city: "Paris",
-                    coordinate: Coordinate(latitude: 48.8566, longitude: 2.3522)
-                ),
-                lineup: [],
-                genres: ["Techno"],
-                price: Price(amount: 25.0),
-                ticketURL: nil,
-                distance: 2.3
-            ),
-            Event(
-                title: "House Festival",
-                description: "Festival house",
-                imageURL: URL(string: "https://example.com/event2.jpg"),
-                date: Date(),
-                location: EventLocation(
-                    name: "Zigzag Club",
-                    address: "Paris",
-                    city: "Paris",
-                    coordinate: Coordinate(latitude: 48.8698, longitude: 2.3048)
-                ),
-                lineup: [],
-                genres: ["House"],
-                price: Price(amount: 35.0),
-                ticketURL: nil,
-                distance: 1.8
-            )
-        ]
+        .buttonStyle(PlainButtonStyle())
     }
 }
 
 // MARK: - Create Group View
-struct CreateGroupView: View {
-    @EnvironmentObject private var sessionStore: SessionStore
+private struct CreateGroupView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var groupName = ""
     @State private var groupDescription = ""
+    @State private var isPrivate = false
+    
+    let onCreateGroup: (Group) -> Void
     
     var body: some View {
         NavigationView {
-            VStack(alignment: .leading, spacing: DesignTokens.Spacing.xl) {
-                Text("Créer un nouveau groupe")
-                    .font(DesignTokens.Typography.title)
-                    .foregroundColor(DesignTokens.Colors.pureWhite)
-                
-                VStack(alignment: .leading, spacing: DesignTokens.Spacing.lg) {
-                    VStack(alignment: .leading, spacing: DesignTokens.Spacing.md) {
-                        Text("Nom du groupe")
-                            .font(DesignTokens.Typography.body)
-                            .foregroundColor(DesignTokens.Colors.pureWhite)
+            ScrollView {
+                VStack(spacing: DesignTokens.Spacing.xl) {
+                    // Header
+                    VStack(spacing: DesignTokens.Spacing.md) {
+                        ZStack {
+                            Circle()
+                                .fill(DesignTokens.Colors.neonBlue.opacity(0.2))
+                                .frame(width: 100, height: 100)
+                            
+                            Image(systemName: "person.3.fill")
+                                .font(.system(size: 50))
+                                .foregroundStyle(DesignTokens.Colors.neonBlue)
+                        }
                         
-                        TextField("Ex: Les Fêtards", text: $groupName)
-                            .textFieldStyle(CustomTextFieldStyle())
+                        Text("Créer un groupe")
+                            .font(DesignTokens.Typography.titleFont)
+                            .foregroundStyle(DesignTokens.Colors.pureWhite)
                     }
                     
-                    VStack(alignment: .leading, spacing: DesignTokens.Spacing.md) {
-                        Text("Description (optionnel)")
-                            .font(DesignTokens.Typography.body)
-                            .foregroundColor(DesignTokens.Colors.pureWhite)
+                    // Form
+                    VStack(spacing: DesignTokens.Spacing.lg) {
+                        // Group name
+                        VStack(alignment: .leading, spacing: DesignTokens.Spacing.sm) {
+                            Text("Nom du groupe")
+                                .font(DesignTokens.Typography.bodyFont)
+                                .foregroundStyle(DesignTokens.Colors.pureWhite)
+                            
+                            TextField("Ex: Les amis de la tech", text: $groupName)
+                                .font(DesignTokens.Typography.bodyFont)
+                                .foregroundStyle(DesignTokens.Colors.pureWhite)
+                                .padding(DesignTokens.Spacing.md)
+                                .background(DesignTokens.Colors.backgroundSecondary)
+                                .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.button))
+                                .tint(DesignTokens.Colors.neonPink)
+                        }
                         
-                        TextField("Décrivez votre groupe...", text: $groupDescription, axis: .vertical)
-                            .textFieldStyle(CustomTextFieldStyle())
-                            .lineLimit(3...6)
+                        // Description
+                        VStack(alignment: .leading, spacing: DesignTokens.Spacing.sm) {
+                            Text("Description (optionnel)")
+                                .font(DesignTokens.Typography.bodyFont)
+                                .foregroundStyle(DesignTokens.Colors.pureWhite)
+                            
+                            TextField("Décrivez votre groupe...", text: $groupDescription, axis: .vertical)
+                                .font(DesignTokens.Typography.bodyFont)
+                                .foregroundStyle(DesignTokens.Colors.pureWhite)
+                                .padding(DesignTokens.Spacing.md)
+                                .background(DesignTokens.Colors.backgroundSecondary)
+                                .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.button))
+                                .lineLimit(3...6)
+                                .tint(DesignTokens.Colors.neonPink)
+                        }
+                        
+                        // Privacy toggle
+                        HStack {
+                            VStack(alignment: .leading, spacing: DesignTokens.Spacing.xs) {
+                                Text("Groupe privé")
+                                    .font(DesignTokens.Typography.bodyFont)
+                                    .foregroundStyle(DesignTokens.Colors.pureWhite)
+                                
+                                Text("Seuls les membres invités peuvent rejoindre")
+                                    .font(DesignTokens.Typography.captionFont)
+                                    .foregroundStyle(DesignTokens.Colors.gray600)
+                            }
+                            
+                            Spacer()
+                            
+                            Toggle("", isOn: $isPrivate)
+                                .tint(DesignTokens.Colors.neonPink)
+                        }
+                        .padding(DesignTokens.Spacing.md)
+                        .background(DesignTokens.Colors.backgroundSecondary)
+                        .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.button))
                     }
+                    
+                    Spacer()
+                    
+                    // Create button
+                    Button(action: createGroup) {
+                        Text("Créer le groupe")
+                            .font(DesignTokens.Typography.headingFont)
+                            .foregroundStyle(DesignTokens.Colors.pureWhite)
+                            .frame(maxWidth: .infinity)
+                            .padding(DesignTokens.Spacing.md)
+                            .background(
+                                LinearGradient(
+                                    colors: [
+                                        DesignTokens.Colors.neonBlue,
+                                        DesignTokens.Colors.neonPink
+                                    ],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
+                            )
+                            .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.button))
+                    }
+                    .disabled(groupName.isEmpty)
+                    .opacity(groupName.isEmpty ? 0.6 : 1.0)
                 }
-                
-                Spacer()
-                
-                Button("Créer le groupe") {
-                    createGroup()
-                }
-                .font(DesignTokens.Typography.body)
-                .fontWeight(.semibold)
-                .foregroundColor(DesignTokens.Colors.pureWhite)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, DesignTokens.Spacing.lg)
-                .background(
-                    RoundedRectangle(cornerRadius: DesignTokens.Radius.button)
-                        .fill(groupName.isEmpty ? DesignTokens.Colors.gray600 : DesignTokens.Colors.neonPink)
-                )
-                .disabled(groupName.isEmpty)
+                .padding(DesignTokens.Spacing.lg)
             }
-            .padding(DesignTokens.Spacing.xl)
             .background(DesignTokens.Colors.nightBlack)
+            .navigationTitle("Nouveau groupe")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
+                ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Annuler") {
                         dismiss()
                     }
-                    .foregroundColor(DesignTokens.Colors.pureWhite)
+                    .foregroundStyle(DesignTokens.Colors.gray600)
                 }
             }
         }
     }
     
     private func createGroup() {
-        // Implémentation de la création de groupe
-        dismiss()
+        let newGroup = Group(
+            id: UUID(),
+            name: groupName,
+            description: groupDescription.isEmpty ? nil : groupDescription,
+            memberCount: 1,
+            isPrivate: isPrivate,
+            hasRecentActivity: false,
+            createdAt: Date()
+        )
+        
+        DesignTokens.Haptics.success.notificationOccurred(.success)
+        onCreateGroup(newGroup)
     }
 }
 
-// MARK: - Join Group View
-struct JoinGroupView: View {
-    @EnvironmentObject private var sessionStore: SessionStore
+// MARK: - Group Detail View
+private struct GroupDetailView: View {
+    let group: Group
     @Environment(\.dismiss) private var dismiss
-    @State private var inviteCode = ""
     
     var body: some View {
         NavigationView {
-            VStack(alignment: .leading, spacing: DesignTokens.Spacing.xl) {
-                Text("Rejoindre un groupe")
-                    .font(DesignTokens.Typography.title)
-                    .foregroundColor(DesignTokens.Colors.pureWhite)
-                
-                VStack(alignment: .leading, spacing: DesignTokens.Spacing.md) {
-                    Text("Code d'invitation")
-                        .font(DesignTokens.Typography.body)
-                        .foregroundColor(DesignTokens.Colors.pureWhite)
+            ScrollView {
+                VStack(spacing: DesignTokens.Spacing.xl) {
+                    // Header
+                    VStack(spacing: DesignTokens.Spacing.lg) {
+                        ZStack {
+                            Circle()
+                                .fill(
+                                    LinearGradient(
+                                        colors: [
+                                            DesignTokens.Colors.neonBlue.opacity(0.8),
+                                            DesignTokens.Colors.neonPink.opacity(0.8)
+                                        ],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
+                                )
+                                .frame(width: 120, height: 120)
+                            
+                            Image(systemName: "person.3.fill")
+                                .font(.system(size: 60))
+                                .foregroundStyle(DesignTokens.Colors.pureWhite)
+                        }
+                        
+                        VStack(spacing: DesignTokens.Spacing.sm) {
+                            HStack {
+                                Text(group.name)
+                                    .font(DesignTokens.Typography.titleFont)
+                                    .foregroundStyle(DesignTokens.Colors.pureWhite)
+                                
+                                if group.isPrivate {
+                                    Image(systemName: "lock.fill")
+                                        .font(.system(size: 16))
+                                        .foregroundStyle(DesignTokens.Colors.warningColor)
+                                }
+                            }
+                            
+                            if let description = group.description {
+                                Text(description)
+                                    .font(DesignTokens.Typography.bodyFont)
+                                    .foregroundStyle(DesignTokens.Colors.gray600)
+                                    .multilineTextAlignment(.center)
+                            }
+                            
+                            Text("\(group.memberCount) membres")
+                                .font(DesignTokens.Typography.captionFont)
+                                .foregroundStyle(DesignTokens.Colors.neonBlue)
+                        }
+                    }
                     
-                    TextField("Ex: ABC12345", text: $inviteCode)
-                        .textFieldStyle(CustomTextFieldStyle())
-                        .textCase(.uppercase)
+                    // Actions
+                    VStack(spacing: DesignTokens.Spacing.md) {
+                        Button(action: {
+                            // TODO: Invite members
+                        }) {
+                            HStack {
+                                Image(systemName: "plus.circle.fill")
+                                    .font(DesignTokens.Typography.headingFont)
+                                Text("Inviter des amis")
+                                    .font(DesignTokens.Typography.headingFont)
+                            }
+                            .foregroundStyle(DesignTokens.Colors.pureWhite)
+                            .frame(maxWidth: .infinity)
+                            .padding(DesignTokens.Spacing.md)
+                            .background(DesignTokens.Colors.neonBlue)
+                            .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.button))
+                        }
+                        
+                        Button(action: {
+                            // TODO: Share group events
+                        }) {
+                            HStack {
+                                Image(systemName: "heart.circle.fill")
+                                    .font(DesignTokens.Typography.headingFont)
+                                Text("Événements partagés")
+                                    .font(DesignTokens.Typography.headingFont)
+                            }
+                            .foregroundStyle(DesignTokens.Colors.pureWhite)
+                            .frame(maxWidth: .infinity)
+                            .padding(DesignTokens.Spacing.md)
+                            .background(DesignTokens.Colors.neonPink)
+                            .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.button))
+                        }
+                    }
+                    
+                    Spacer()
                 }
-                
-                Spacer()
-                
-                Button("Rejoindre") {
-                    joinGroup()
-                }
-                .font(DesignTokens.Typography.body)
-                .fontWeight(.semibold)
-                .foregroundColor(DesignTokens.Colors.pureWhite)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, DesignTokens.Spacing.lg)
-                .background(
-                    RoundedRectangle(cornerRadius: DesignTokens.Radius.button)
-                        .fill(inviteCode.isEmpty ? DesignTokens.Colors.gray600 : DesignTokens.Colors.neonBlue)
-                )
-                .disabled(inviteCode.isEmpty)
+                .padding(DesignTokens.Spacing.lg)
             }
-            .padding(DesignTokens.Spacing.xl)
             .background(DesignTokens.Colors.nightBlack)
+            .navigationTitle("Détails du groupe")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Annuler") {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Fermer") {
                         dismiss()
                     }
-                    .foregroundColor(DesignTokens.Colors.pureWhite)
+                    .foregroundStyle(DesignTokens.Colors.neonPink)
                 }
             }
         }
     }
-    
-    private func joinGroup() {
-        // Implémentation pour rejoindre un groupe
-        dismiss()
-    }
 }
 
-// MARK: - Custom Text Field Style
-struct CustomTextFieldStyle: TextFieldStyle {
-    func _body(configuration: TextField<Self._Label>) -> some View {
-        configuration
-            .font(DesignTokens.Typography.body)
-            .foregroundColor(DesignTokens.Colors.pureWhite)
-            .padding(DesignTokens.Spacing.lg)
-            .background(
-                RoundedRectangle(cornerRadius: DesignTokens.Radius.button)
-                    .fill(DesignTokens.Colors.gray600.opacity(0.1))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: DesignTokens.Radius.button)
-                            .stroke(DesignTokens.Colors.gray600.opacity(0.3), lineWidth: 1)
-                    )
-            )
-    }
-}
-
-// MARK: - Previews
-#Preview {
+// MARK: - Preview
+#Preview("Groups View") {
     GroupsView()
-        .environmentObject(SessionStore())
+        .preferredColorScheme(.dark)
+}
+
+#Preview("Create Group") {
+    CreateGroupView(onCreateGroup: { _ in })
+        .preferredColorScheme(.dark)
+}
+
+#Preview("Group Detail") {
+    GroupDetailView(group: Group.mockGroups[0])
+        .preferredColorScheme(.dark)
 } 
