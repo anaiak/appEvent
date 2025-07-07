@@ -1,62 +1,77 @@
 import SwiftUI
 
 // MARK: - Swipe View
+// Vue principale du flux de swipe avec deck de cartes selon spec
+
 public struct SwipeView: View {
     @StateObject private var viewModel = SwipeViewModel()
-    @EnvironmentObject private var sessionStore: SessionStore
+    @State private var showingEventDetail = false
+    @State private var selectedEvent: Event?
     @State private var showingProfile = false
     @State private var showingGroups = false
-    @State private var selectedEvent: Event?
     
     public init() {}
     
     public var body: some View {
-        NavigationStack {
+        GeometryReader { geometry in
             ZStack {
-                // Background
+                // Background global
                 DesignTokens.Colors.nightBlack
                     .ignoresSafeArea()
                 
                 VStack(spacing: 0) {
-                    // Header
+                    // Header avec navigation
                     headerView
-                        .padding(.horizontal, DesignTokens.Spacing.xl)
+                        .padding(.horizontal, DesignTokens.Spacing.lg)
                         .padding(.top, DesignTokens.Spacing.md)
                     
-                    // Card Stack
-                    cardStackView
-                        .padding(.horizontal, DesignTokens.Spacing.xl)
+                    // Zone principale de swipe
+                    ZStack {
+                        if viewModel.hasCurrentEvent {
+                            // Deck de cartes selon spec
+                            cardDeckView(in: geometry)
+                        } else if viewModel.isLoading {
+                            loadingView
+                        } else {
+                            emptyStateView
+                        }
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .padding(.horizontal, DesignTokens.Spacing.lg)
                     
-                    // Action Buttons
-                    actionButtonsView
-                        .padding(.horizontal, DesignTokens.Spacing.xl)
-                        .padding(.bottom, DesignTokens.Spacing.xl)
+                    // Footer avec actions
+                    if viewModel.hasCurrentEvent {
+                        footerActionsView
+                            .padding(.horizontal, DesignTokens.Spacing.xl)
+                            .padding(.bottom, DesignTokens.Spacing.lg)
+                    }
                 }
                 
-                // Loading Overlay
-                if viewModel.isLoading {
-                    loadingOverlay
+                // Error message overlay
+                if let errorMessage = viewModel.errorMessage {
+                    errorOverlay(errorMessage)
                 }
             }
-            .navigationBarHidden(true)
-            .refreshable {
+        }
+        .navigationBarHidden(true)
+        .refreshable {
+            await viewModel.refresh()
+        }
+        .task {
+            if viewModel.events.isEmpty {
                 await viewModel.loadEvents()
             }
-            .task {
-                await viewModel.loadEvents()
-            }
-            .sheet(isPresented: $showingProfile) {
-                ProfileView()
-                    .environmentObject(sessionStore)
-            }
-            .sheet(isPresented: $showingGroups) {
-                GroupsView()
-                    .environmentObject(sessionStore)
-            }
-            .sheet(item: $selectedEvent) { event in
+        }
+        .sheet(isPresented: $showingEventDetail) {
+            if let event = selectedEvent {
                 EventDetailView(event: event)
-                    .environmentObject(sessionStore)
             }
+        }
+        .sheet(isPresented: $showingProfile) {
+            ProfileView()
+        }
+        .sheet(isPresented: $showingGroups) {
+            GroupsView()
         }
     }
     
@@ -64,23 +79,34 @@ public struct SwipeView: View {
     private var headerView: some View {
         HStack {
             // Logo/Title
-            Text("Soirées")
-                .font(DesignTokens.Typography.title)
-                .foregroundColor(DesignTokens.Colors.pureWhite)
+            VStack(alignment: .leading, spacing: DesignTokens.Spacing.xxs) {
+                Text("SoireesSwipe")
+                    .font(DesignTokens.Typography.titleFont)
+                    .foregroundStyle(DesignTokens.Colors.pureWhite)
+                
+                if !viewModel.isLoading && viewModel.hasCurrentEvent {
+                    Text("\(viewModel.events.count - viewModel.currentEventIndex) soirées disponibles")
+                        .font(DesignTokens.Typography.captionFont)
+                        .foregroundStyle(DesignTokens.Colors.gray600)
+                }
+            }
             
             Spacer()
             
-            // Action Buttons
-            HStack(spacing: DesignTokens.Spacing.lg) {
-                // Groups Button
-                Button(action: { showingGroups = true }) {
+            // Navigation buttons
+            HStack(spacing: DesignTokens.Spacing.md) {
+                // Groupes button
+                Button(action: {
+                    showingGroups = true
+                    DesignTokens.Haptics.selection.selectionChanged()
+                }) {
                     Image(systemName: "person.3.fill")
                         .font(.system(size: 20))
-                        .foregroundColor(DesignTokens.Colors.neonBlue)
-                        .frame(width: 44, height: 44)
+                        .foregroundStyle(DesignTokens.Colors.neonBlue)
+                        .frame(width: 40, height: 40)
                         .background(
                             Circle()
-                                .fill(DesignTokens.Colors.neonBlue.opacity(0.1))
+                                .fill(DesignTokens.Colors.backgroundSecondary)
                                 .overlay(
                                     Circle()
                                         .stroke(DesignTokens.Colors.neonBlue.opacity(0.3), lineWidth: 1)
@@ -88,213 +114,335 @@ public struct SwipeView: View {
                         )
                 }
                 
-                // Profile Button
-                Button(action: { showingProfile = true }) {
-                    AsyncImage(url: sessionStore.currentUser?.avatarURL) { image in
-                        image
-                            .resizable()
-                            .aspectRatio(contentMode: .fill)
-                    } placeholder: {
-                        Image(systemName: "person.fill")
-                            .font(.system(size: 20))
-                            .foregroundColor(DesignTokens.Colors.pureWhite)
-                    }
-                    .frame(width: 44, height: 44)
-                    .background(DesignTokens.Colors.gray600)
-                    .clipShape(Circle())
-                    .overlay(
-                        Circle()
-                            .stroke(DesignTokens.Colors.neonPink.opacity(0.3), lineWidth: 2)
-                    )
+                // Profile button
+                Button(action: {
+                    showingProfile = true
+                    DesignTokens.Haptics.selection.selectionChanged()
+                }) {
+                    Image(systemName: "person.circle.fill")
+                        .font(.system(size: 20))
+                        .foregroundStyle(DesignTokens.Colors.neonPink)
+                        .frame(width: 40, height: 40)
+                        .background(
+                            Circle()
+                                .fill(DesignTokens.Colors.backgroundSecondary)
+                                .overlay(
+                                    Circle()
+                                        .stroke(DesignTokens.Colors.neonPink.opacity(0.3), lineWidth: 1)
+                                )
+                        )
                 }
             }
         }
     }
     
-    // MARK: - Card Stack View
-    private var cardStackView: some View {
-        GeometryReader { geometry in
-            ZStack {
-                // Troisième carte (arrière-plan)
-                if let thirdEvent = viewModel.thirdEvent {
-                    EventCardView(
-                        event: thirdEvent,
-                        scale: DesignTokens.Animation.CardScale.background
-                    )
-                    .frame(
-                        width: geometry.size.width,
-                        height: geometry.size.height * 0.85
-                    )
-                    .zIndex(1)
-                }
-                
-                // Deuxième carte (milieu)
-                if let nextEvent = viewModel.nextEvent {
-                    EventCardView(
-                        event: nextEvent,
-                        scale: DesignTokens.Animation.CardScale.middle
-                    )
-                    .frame(
-                        width: geometry.size.width,
-                        height: geometry.size.height * 0.9
-                    )
-                    .zIndex(2)
-                }
-                
-                // Première carte (avant-plan)
-                if let currentEvent = viewModel.currentEvent {
-                    EventCardView(
-                        event: currentEvent,
-                        dragOffset: viewModel.dragOffset,
-                        rotation: viewModel.rotation,
-                        likeOpacity: viewModel.likeOpacity,
-                        passOpacity: viewModel.passOpacity,
-                        scale: DesignTokens.Animation.CardScale.front
-                    )
-                    .frame(
-                        width: geometry.size.width,
-                        height: geometry.size.height * 0.95
-                    )
-                    .zIndex(3)
-                    .gesture(
-                        DragGesture()
-                            .onChanged { value in
-                                viewModel.updateDragOffset(value.translation)
-                            }
-                            .onEnded { value in
-                                handleDragEnd(value.translation)
-                            }
-                    )
-                    .onTapGesture {
-                        selectedEvent = currentEvent
+    // MARK: - Card Deck View (selon spec)
+    private func cardDeckView(in geometry: GeometryProxy) -> some View {
+        let cardWidth = geometry.size.width - (DesignTokens.Spacing.lg * 2)
+        let cardHeight = geometry.size.height * 0.75
+        
+        return ZStack {
+            // 3 cartes pré-chargées selon spec avec scale 0.94 / 0.97 / 1.0
+            ForEach(Array(viewModel.eventsInDeck.enumerated()), id: \.offset) { index, event in
+                EventCardView(
+                    event: event,
+                    onLike: {
+                        Task {
+                            await viewModel.likeEvent()
+                        }
+                    },
+                    onPass: {
+                        Task {
+                            await viewModel.passEvent()
+                        }
+                    },
+                    onTap: {
+                        selectedEvent = event
+                        showingEventDetail = true
                     }
-                }
-                
-                // État vide
-                if !viewModel.hasMoreEvents && !viewModel.isLoading {
-                    emptyStateView
-                        .zIndex(0)
-                }
+                )
+                .frame(width: cardWidth, height: cardHeight)
+                .scaleEffect(scaleForCardIndex(index))
+                .offset(y: offsetForCardIndex(index))
+                .zIndex(Double(viewModel.eventsInDeck.count - index))
+                .opacity(opacityForCardIndex(index))
+                .animation(DesignTokens.Animation.cardSwipe, value: viewModel.currentEventIndex)
             }
         }
-        .frame(height: UIScreen.main.bounds.height * 0.65)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
     }
     
-    // MARK: - Action Buttons View
-    private var actionButtonsView: some View {
-        HStack(spacing: DesignTokens.Spacing.xxl) {
-            // Pass Button
-            Button(action: { 
-                viewModel.handleSwipe(direction: .pass)
+    // MARK: - Card Stack Calculations (selon spec)
+    private func scaleForCardIndex(_ index: Int) -> CGFloat {
+        switch index {
+        case 0: return DesignTokens.SwipeThresholds.cardScale.top        // 1.0
+        case 1: return DesignTokens.SwipeThresholds.cardScale.middle     // 0.97
+        case 2: return DesignTokens.SwipeThresholds.cardScale.background // 0.94
+        default: return 0.9
+        }
+    }
+    
+    private func offsetForCardIndex(_ index: Int) -> CGFloat {
+        switch index {
+        case 0: return 0
+        case 1: return DesignTokens.Spacing.xs
+        case 2: return DesignTokens.Spacing.md
+        default: return DesignTokens.Spacing.lg
+        }
+    }
+    
+    private func opacityForCardIndex(_ index: Int) -> Double {
+        switch index {
+        case 0: return 1.0
+        case 1: return 0.8
+        case 2: return 0.6
+        default: return 0.4
+        }
+    }
+    
+    // MARK: - Footer Actions
+    private var footerActionsView: some View {
+        HStack(spacing: DesignTokens.Spacing.xl) {
+            // Pass button
+            Button(action: {
+                Task {
+                    await viewModel.passEvent()
+                }
             }) {
                 Image(systemName: "xmark")
                     .font(.system(size: 24, weight: .bold))
-                    .foregroundColor(DesignTokens.Colors.gray600)
+                    .foregroundStyle(DesignTokens.Colors.pureWhite)
                     .frame(width: 60, height: 60)
                     .background(
                         Circle()
-                            .fill(DesignTokens.Colors.pureWhite)
+                            .fill(DesignTokens.Colors.gray600)
                             .shadow(
-                                color: DesignTokens.Colors.nightBlack.opacity(0.1),
+                                color: DesignTokens.Colors.gray600.opacity(0.3),
                                 radius: 8,
                                 x: 0,
                                 y: 4
                             )
                     )
             }
-            .disabled(!viewModel.hasMoreEvents)
+            .buttonStyle(PlainButtonStyle())
             
-            Spacer()
+            // Super Like button (bonus)
+            Button(action: {
+                // TODO: Implémenter super like
+                DesignTokens.Haptics.heavy.impactOccurred()
+            }) {
+                Image(systemName: "star.fill")
+                    .font(.system(size: 20, weight: .bold))
+                    .foregroundStyle(DesignTokens.Colors.pureWhite)
+                    .frame(width: 50, height: 50)
+                    .background(
+                        Circle()
+                            .fill(
+                                LinearGradient(
+                                    colors: [
+                                        DesignTokens.Colors.neonBlue,
+                                        DesignTokens.Colors.neonPink
+                                    ],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                            .shadow(
+                                color: DesignTokens.Colors.neonBlue.opacity(0.4),
+                                radius: 8,
+                                x: 0,
+                                y: 4
+                            )
+                    )
+            }
+            .buttonStyle(PlainButtonStyle())
             
-            // Like Button
-            Button(action: { 
-                viewModel.handleSwipe(direction: .like)
+            // Like button
+            Button(action: {
+                Task {
+                    await viewModel.likeEvent()
+                }
             }) {
                 Image(systemName: "heart.fill")
-                    .font(.system(size: 28, weight: .bold))
-                    .foregroundColor(DesignTokens.Colors.pureWhite)
-                    .frame(width: 70, height: 70)
+                    .font(.system(size: 24, weight: .bold))
+                    .foregroundStyle(DesignTokens.Colors.pureWhite)
+                    .frame(width: 60, height: 60)
                     .background(
                         Circle()
                             .fill(DesignTokens.Colors.neonPink)
                             .shadow(
-                                color: DesignTokens.Colors.neonPink.opacity(0.3),
-                                radius: 12,
+                                color: DesignTokens.Colors.neonPink.opacity(0.4),
+                                radius: 8,
                                 x: 0,
-                                y: 6
+                                y: 4
                             )
                     )
             }
-            .disabled(!viewModel.hasMoreEvents)
+            .buttonStyle(PlainButtonStyle())
         }
+        .padding(.vertical, DesignTokens.Spacing.md)
     }
     
-    // MARK: - Empty State View
+    // MARK: - Loading View
+    private var loadingView: some View {
+        VStack(spacing: DesignTokens.Spacing.lg) {
+            ProgressView()
+                .scaleEffect(1.5)
+                .tint(DesignTokens.Colors.neonPink)
+            
+            Text("Chargement des soirées...")
+                .font(DesignTokens.Typography.bodyFont)
+                .foregroundStyle(DesignTokens.Colors.gray600)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+    
+    // MARK: - Empty State
     private var emptyStateView: some View {
-        VStack(spacing: DesignTokens.Spacing.xl) {
-            Image(systemName: "sparkles")
-                .font(.system(size: 60))
-                .foregroundColor(DesignTokens.Colors.neonPink)
+        VStack(spacing: DesignTokens.Spacing.lg) {
+            Image(systemName: "party.popper")
+                .font(.system(size: 80))
+                .foregroundStyle(DesignTokens.Colors.gray600)
             
-            VStack(spacing: DesignTokens.Spacing.md) {
-                Text("Plus d'événements pour le moment")
-                    .font(DesignTokens.Typography.heading)
-                    .foregroundColor(DesignTokens.Colors.pureWhite)
-                    .multilineTextAlignment(.center)
+            VStack(spacing: DesignTokens.Spacing.sm) {
+                Text("Plus de soirées disponibles")
+                    .font(DesignTokens.Typography.headingFont)
+                    .foregroundStyle(DesignTokens.Colors.pureWhite)
                 
-                Text("Reviens plus tard pour découvrir de nouvelles soirées !")
-                    .font(DesignTokens.Typography.body)
-                    .foregroundColor(DesignTokens.Colors.gray600)
+                Text("Revenez plus tard pour découvrir de nouveaux événements !")
+                    .font(DesignTokens.Typography.bodyFont)
+                    .foregroundStyle(DesignTokens.Colors.gray600)
                     .multilineTextAlignment(.center)
             }
             
-            Button("Actualiser") {
+            Button(action: {
                 Task {
-                    await viewModel.loadEvents()
+                    await viewModel.refresh()
                 }
+            }) {
+                HStack {
+                    Image(systemName: "arrow.clockwise")
+                    Text("Actualiser")
+                }
+                .font(DesignTokens.Typography.bodyFont)
+                .foregroundStyle(DesignTokens.Colors.pureWhite)
+                .padding(.horizontal, DesignTokens.Spacing.lg)
+                .padding(.vertical, DesignTokens.Spacing.md)
+                .background(DesignTokens.Colors.neonPink)
+                .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.button))
             }
-            .font(DesignTokens.Typography.body)
-            .foregroundColor(DesignTokens.Colors.pureWhite)
-            .padding(.horizontal, DesignTokens.Spacing.xl)
-            .padding(.vertical, DesignTokens.Spacing.lg)
+        }
+        .padding(DesignTokens.Spacing.xl)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+    
+    // MARK: - Error Overlay
+    private func errorOverlay(_ message: String) -> some View {
+        VStack {
+            Spacer()
+            
+            HStack {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(DesignTokens.Colors.warningColor)
+                Text(message)
+                    .font(DesignTokens.Typography.bodyFont)
+                    .foregroundStyle(DesignTokens.Colors.pureWhite)
+            }
+            .padding(DesignTokens.Spacing.md)
             .background(
                 RoundedRectangle(cornerRadius: DesignTokens.Radius.button)
-                    .fill(DesignTokens.Colors.neonPink)
+                    .fill(DesignTokens.Colors.backgroundSecondary)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: DesignTokens.Radius.button)
+                            .stroke(DesignTokens.Colors.warningColor, lineWidth: 1)
+                    )
             )
+            .padding(.horizontal, DesignTokens.Spacing.lg)
+            .padding(.bottom, DesignTokens.Spacing.xl)
         }
-        .padding(DesignTokens.Spacing.xxl)
+        .transition(.move(edge: .bottom).combined(with: .opacity))
+        .animation(DesignTokens.Animation.standardSpring, value: viewModel.errorMessage)
     }
+}
+
+// MARK: - Placeholder Views (à développer plus tard)
+private struct EventDetailView: View {
+    let event: Event
     
-    // MARK: - Loading Overlay
-    private var loadingOverlay: some View {
-        ZStack {
-            DesignTokens.Colors.nightBlack.opacity(0.8)
-                .ignoresSafeArea()
-            
-            VStack(spacing: DesignTokens.Spacing.lg) {
-                ProgressView()
-                    .progressViewStyle(CircularProgressViewStyle(tint: DesignTokens.Colors.neonPink))
-                    .scaleEffect(1.5)
-                
-                Text("Chargement des événements...")
-                    .font(DesignTokens.Typography.body)
-                    .foregroundColor(DesignTokens.Colors.pureWhite)
+    var body: some View {
+        NavigationView {
+            ScrollView {
+                VStack(alignment: .leading, spacing: DesignTokens.Spacing.lg) {
+                    AsyncImage(url: URL(string: event.imageURL)) { image in
+                        image
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                    } placeholder: {
+                        Rectangle()
+                            .fill(DesignTokens.Colors.backgroundSecondary)
+                    }
+                    .frame(height: 300)
+                    .clipped()
+                    
+                    VStack(alignment: .leading, spacing: DesignTokens.Spacing.md) {
+                        Text(event.title)
+                            .font(DesignTokens.Typography.titleFont)
+                            .foregroundStyle(DesignTokens.Colors.pureWhite)
+                        
+                        Text(event.description)
+                            .font(DesignTokens.Typography.bodyFont)
+                            .foregroundStyle(DesignTokens.Colors.gray600)
+                        
+                        // Plus de détails à implémenter...
+                    }
+                    .padding(DesignTokens.Spacing.lg)
+                }
             }
-        }
-    }
-    
-    // MARK: - Private Methods
-    private func handleDragEnd(_ translation: CGSize) {
-        if let direction = viewModel.shouldTriggerSwipe(for: translation) {
-            viewModel.handleSwipe(direction: direction)
-        } else {
-            viewModel.resetCardPosition()
+            .background(DesignTokens.Colors.nightBlack)
+            .navigationTitle("Détail de l'événement")
+            .navigationBarTitleDisplayMode(.inline)
         }
     }
 }
 
-// MARK: - Previews
-#Preview {
+private struct ProfileView: View {
+    var body: some View {
+        NavigationView {
+            Text("Profil utilisateur")
+                .font(DesignTokens.Typography.titleFont)
+                .foregroundStyle(DesignTokens.Colors.pureWhite)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(DesignTokens.Colors.nightBlack)
+                .navigationTitle("Profil")
+                .navigationBarTitleDisplayMode(.inline)
+        }
+    }
+}
+
+private struct GroupsView: View {
+    var body: some View {
+        NavigationView {
+            Text("Groupes d'amis")
+                .font(DesignTokens.Typography.titleFont)
+                .foregroundStyle(DesignTokens.Colors.pureWhite)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(DesignTokens.Colors.nightBlack)
+                .navigationTitle("Groupes")
+                .navigationBarTitleDisplayMode(.inline)
+        }
+    }
+}
+
+// MARK: - Preview
+#Preview("Swipe View") {
     SwipeView()
-        .environmentObject(SessionStore())
+        .preferredColorScheme(.dark)
+}
+
+#Preview("Swipe View - Loading") {
+    SwipeView()
+        .preferredColorScheme(.dark)
+        .onAppear {
+            // Mock loading state
+        }
 } 

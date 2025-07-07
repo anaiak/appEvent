@@ -1,255 +1,400 @@
 import SwiftUI
 
 // MARK: - Event Card View
+// Carte d'événement selon spec : ZStack image + overlay dégradé noir / info (titre, date, distance)
+
 public struct EventCardView: View {
     let event: Event
-    let dragOffset: CGSize
-    let rotation: Double
-    let likeOpacity: Double
-    let passOpacity: Double
-    let scale: CGFloat
+    let onLike: () -> Void
+    let onPass: () -> Void
+    let onTap: () -> Void
+    
+    @State private var dragOffset: CGSize = .zero
+    @State private var rotationAngle: Double = 0
+    @State private var showLikeBadge: Bool = false
+    @State private var showPassBadge: Bool = false
+    @State private var cardOpacity: Double = 1.0
     
     public init(
         event: Event,
-        dragOffset: CGSize = .zero,
-        rotation: Double = 0,
-        likeOpacity: Double = 0,
-        passOpacity: Double = 0,
-        scale: CGFloat = 1.0
+        onLike: @escaping () -> Void = {},
+        onPass: @escaping () -> Void = {},
+        onTap: @escaping () -> Void = {}
     ) {
         self.event = event
-        self.dragOffset = dragOffset
-        self.rotation = rotation
-        self.likeOpacity = likeOpacity
-        self.passOpacity = passOpacity
-        self.scale = scale
+        self.onLike = onLike
+        self.onPass = onPass
+        self.onTap = onTap
     }
     
     public var body: some View {
         ZStack {
             // Image de fond
-            AsyncImage(url: event.imageURL) { image in
+            AsyncImage(url: URL(string: event.imageURL)) { image in
                 image
                     .resizable()
                     .aspectRatio(contentMode: .fill)
             } placeholder: {
+                // Placeholder avec dégradé selon Design System
                 Rectangle()
-                    .fill(DesignTokens.Colors.gray600.opacity(0.3))
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                DesignTokens.Colors.backgroundSecondary,
+                                DesignTokens.Colors.nightBlack
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
                     .overlay(
                         Image(systemName: "photo")
-                            .font(.system(size: 40))
-                            .foregroundColor(DesignTokens.Colors.gray600)
+                            .font(.system(size: 50))
+                            .foregroundStyle(DesignTokens.Colors.gray600)
                     )
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .clipped()
             
-            // Dégradé overlay
+            // Overlay dégradé noir selon spec
             LinearGradient(
-                gradient: Gradient(stops: [
-                    .init(color: .clear, location: 0.0),
-                    .init(color: .clear, location: 0.4),
-                    .init(color: DesignTokens.Colors.nightBlack.opacity(0.8), location: 1.0)
-                ]),
+                colors: [
+                    Color.clear,
+                    Color.clear,
+                    Color.black.opacity(0.3),
+                    Color.black.opacity(0.8),
+                    Color.black.opacity(0.95)
+                ],
                 startPoint: .top,
                 endPoint: .bottom
             )
             
-            // Contenu de la carte
-            VStack(alignment: .leading, spacing: DesignTokens.Spacing.md) {
+            // Contenu informatif en bas
+            VStack {
                 Spacer()
                 
-                // Informations de l'événement
                 VStack(alignment: .leading, spacing: DesignTokens.Spacing.sm) {
-                    // Titre
+                    // Tags de genres musicaux
+                    HStack {
+                        ForEach(Array(event.musicGenres.prefix(2)), id: \.self) { genre in
+                            Text("\(genre.emoji) \(genre.rawValue)")
+                                .font(DesignTokens.Typography.captionFont)
+                                .foregroundStyle(DesignTokens.Colors.pureWhite)
+                                .padding(.horizontal, DesignTokens.Spacing.xs)
+                                .padding(.vertical, DesignTokens.Spacing.xxs)
+                                .background(
+                                    DesignTokens.Colors.neonPink.opacity(0.8)
+                                        .background(.ultraThinMaterial)
+                                )
+                                .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.small))
+                        }
+                        Spacer()
+                    }
+                    
+                    // Titre de l'événement
                     Text(event.title)
-                        .font(DesignTokens.Typography.heading)
-                        .foregroundColor(DesignTokens.Colors.pureWhite)
+                        .font(DesignTokens.Typography.titleFont)
+                        .foregroundStyle(DesignTokens.Colors.pureWhite)
                         .lineLimit(2)
                         .multilineTextAlignment(.leading)
                     
-                    // Date et distance
+                    // Infos date et lieu
                     HStack(spacing: DesignTokens.Spacing.sm) {
-                        HStack(spacing: DesignTokens.Spacing.xs) {
+                        // Date
+                        HStack(spacing: DesignTokens.Spacing.xxs) {
                             Image(systemName: "calendar")
-                                .font(.caption)
-                            Text(event.formattedDate)
-                                .font(DesignTokens.Typography.caption)
-                        }
-                        
-                        if let distance = event.formattedDistance {
-                            HStack(spacing: DesignTokens.Spacing.xs) {
-                                Image(systemName: "location")
-                                    .font(.caption)
-                                Text(distance)
-                                    .font(DesignTokens.Typography.caption)
-                            }
+                                .font(DesignTokens.Typography.captionFont)
+                                .foregroundStyle(DesignTokens.Colors.neonBlue)
+                            Text("\(event.formattedDate) • \(event.formattedTime)")
+                                .font(DesignTokens.Typography.bodyFont)
+                                .foregroundStyle(DesignTokens.Colors.pureWhite)
                         }
                         
                         Spacer()
-                    }
-                    .foregroundColor(DesignTokens.Colors.pureWhite.opacity(0.8))
-                    
-                    // Lieu
-                    Text(event.location.name)
-                        .font(DesignTokens.Typography.body)
-                        .foregroundColor(DesignTokens.Colors.pureWhite.opacity(0.9))
-                    
-                    // Genres
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: DesignTokens.Spacing.sm) {
-                            ForEach(event.genres, id: \.self) { genre in
-                                GenreChip(text: genre)
+                        
+                        // Distance
+                        if !event.formattedDistance.isEmpty {
+                            HStack(spacing: DesignTokens.Spacing.xxs) {
+                                Image(systemName: "location")
+                                    .font(DesignTokens.Typography.captionFont)
+                                    .foregroundStyle(DesignTokens.Colors.neonPink)
+                                Text(event.formattedDistance)
+                                    .font(DesignTokens.Typography.bodyFont)
+                                    .foregroundStyle(DesignTokens.Colors.pureWhite)
                             }
                         }
-                        .padding(.horizontal, 1)
                     }
                     
-                    // Prix
-                    if let price = event.price {
-                        Text(price.formatted)
-                            .font(DesignTokens.Typography.heading)
-                            .foregroundColor(DesignTokens.Colors.neonPink)
+                    // Lieu et prix
+                    HStack {
+                        VStack(alignment: .leading, spacing: DesignTokens.Spacing.xxs) {
+                            Text(event.venue.name)
+                                .font(DesignTokens.Typography.bodyFont)
+                                .foregroundStyle(DesignTokens.Colors.gray600)
+                            Text(event.venue.city)
+                                .font(DesignTokens.Typography.captionFont)
+                                .foregroundStyle(DesignTokens.Colors.gray600)
+                        }
+                        
+                        Spacer()
+                        
+                        // Prix
+                        Text(event.priceRange)
+                            .font(DesignTokens.Typography.headingFont)
+                            .foregroundStyle(DesignTokens.Colors.neonBlue)
+                    }
+                    
+                    // Organisateur si vérifié
+                    if event.organizer.verified {
+                        HStack(spacing: DesignTokens.Spacing.xxs) {
+                            Image(systemName: "checkmark.seal.fill")
+                                .font(DesignTokens.Typography.captionFont)
+                                .foregroundStyle(DesignTokens.Colors.successColor)
+                            Text(event.organizer.name)
+                                .font(DesignTokens.Typography.captionFont)
+                                .foregroundStyle(DesignTokens.Colors.gray600)
+                        }
                     }
                 }
-                .padding(DesignTokens.Spacing.xl)
+                .padding(DesignTokens.Spacing.lg)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
             
-            // Badge Like
-            if likeOpacity > 0 {
-                SwipeBadge(type: .like, opacity: likeOpacity)
-                    .position(x: UIScreen.main.bounds.width * 0.75, y: 100)
+            // Badges de Like et Pass selon spec
+            if showLikeBadge {
+                VStack {
+                    HStack {
+                        Spacer()
+                        LikeBadge()
+                            .padding(.top, 60)
+                            .padding(.trailing, DesignTokens.Spacing.lg)
+                    }
+                    Spacer()
+                }
+                .transition(.asymmetric(
+                    insertion: .scale.combined(with: .opacity),
+                    removal: .opacity
+                ))
             }
             
-            // Badge Pass
-            if passOpacity > 0 {
-                SwipeBadge(type: .pass, opacity: passOpacity)
-                    .position(x: UIScreen.main.bounds.width * 0.25, y: 100)
+            if showPassBadge {
+                VStack {
+                    HStack {
+                        PassBadge()
+                            .padding(.top, 60)
+                            .padding(.leading, DesignTokens.Spacing.lg)
+                        Spacer()
+                    }
+                    Spacer()
+                }
+                .transition(.asymmetric(
+                    insertion: .scale.combined(with: .opacity),
+                    removal: .opacity
+                ))
             }
         }
-        .background(DesignTokens.Colors.nightBlack)
-        .cornerRadius(DesignTokens.Radius.card)
-        .scaleEffect(scale)
-        .offset(dragOffset)
-        .rotationEffect(.degrees(rotation))
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(DesignTokens.Colors.backgroundSecondary)
+        .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.card))
         .shadow(
-            color: DesignTokens.Colors.nightBlack.opacity(0.3),
-            radius: 10,
-            x: 0,
-            y: 5
+            color: DesignTokens.Shadow.card.color,
+            radius: DesignTokens.Shadow.card.radius,
+            x: DesignTokens.Shadow.card.x,
+            y: DesignTokens.Shadow.card.y
         )
+        .opacity(cardOpacity)
+        .rotationEffect(.degrees(rotationAngle))
+        .offset(dragOffset)
+        .scaleEffect(dragOffset == .zero ? 1.0 : 0.95)
+        .gesture(
+            DragGesture()
+                .onChanged { value in
+                    handleDragChanged(value)
+                }
+                .onEnded { value in
+                    handleDragEnded(value)
+                }
+        )
+        .onTapGesture {
+            onTap()
+        }
+        .animation(DesignTokens.Animation.cardSwipe, value: dragOffset)
+        .animation(DesignTokens.Animation.cardSwipe, value: rotationAngle)
+        .animation(DesignTokens.Animation.fadeInOut, value: showLikeBadge)
+        .animation(DesignTokens.Animation.fadeInOut, value: showPassBadge)
+    }
+    
+    // MARK: - Drag Handlers selon spec
+    private func handleDragChanged(_ value: DragGesture.Value) {
+        dragOffset = value.translation
+        
+        // Rotation ±5° selon spec
+        let maxRotation = DesignTokens.SwipeThresholds.maxRotation
+        rotationAngle = Double(dragOffset.width / 20) * maxRotation
+        rotationAngle = max(-maxRotation, min(maxRotation, rotationAngle))
+        
+        // Badges fade in selon spec (seuil 40pt)
+        if dragOffset.width > DesignTokens.SwipeThresholds.previewThreshold {
+            if !showLikeBadge {
+                showLikeBadge = true
+                DesignTokens.Haptics.light.impactOccurred()
+            }
+            showPassBadge = false
+        } else if dragOffset.width < -DesignTokens.SwipeThresholds.previewThreshold {
+            if !showPassBadge {
+                showPassBadge = true
+                DesignTokens.Haptics.light.impactOccurred()
+            }
+            showLikeBadge = false
+        } else {
+            showLikeBadge = false
+            showPassBadge = false
+        }
+    }
+    
+    private func handleDragEnded(_ value: DragGesture.Value) {
+        let threshold = DesignTokens.SwipeThresholds.actionThreshold
+        
+        if value.translation.width > threshold {
+            // Like action
+            DesignTokens.Haptics.success.notificationOccurred(.success)
+            performLikeAction()
+        } else if value.translation.width < -threshold {
+            // Pass action
+            DesignTokens.Haptics.medium.impactOccurred()
+            performPassAction()
+        } else {
+            // Reset position
+            resetCardPosition()
+        }
+    }
+    
+    private func performLikeAction() {
+        withAnimation(DesignTokens.Animation.cardSwipe) {
+            dragOffset = CGSize(width: 500, height: 0)
+            rotationAngle = DesignTokens.SwipeThresholds.maxRotation
+            cardOpacity = 0
+        }
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            onLike()
+        }
+    }
+    
+    private func performPassAction() {
+        withAnimation(DesignTokens.Animation.cardSwipe) {
+            dragOffset = CGSize(width: -500, height: 0)
+            rotationAngle = -DesignTokens.SwipeThresholds.maxRotation
+            cardOpacity = 0
+        }
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            onPass()
+        }
+    }
+    
+    private func resetCardPosition() {
+        withAnimation(DesignTokens.Animation.cardSwipe) {
+            dragOffset = .zero
+            rotationAngle = 0
+            showLikeBadge = false
+            showPassBadge = false
+            cardOpacity = 1.0
+        }
     }
 }
 
-// MARK: - Genre Chip
-struct GenreChip: View {
-    let text: String
-    
+// MARK: - Like Badge Component
+private struct LikeBadge: View {
     var body: some View {
-        Text(text)
-            .font(DesignTokens.Typography.caption)
-            .foregroundColor(DesignTokens.Colors.pureWhite)
-            .padding(.horizontal, DesignTokens.Spacing.md)
-            .padding(.vertical, DesignTokens.Spacing.xs)
+        Text("LIKE")
+            .font(DesignTokens.Typography.headingFont)
+            .fontWeight(.black)
+            .foregroundStyle(DesignTokens.Colors.pureWhite)
+            .padding(.horizontal, DesignTokens.Spacing.lg)
+            .padding(.vertical, DesignTokens.Spacing.md)
             .background(
-                RoundedRectangle(cornerRadius: DesignTokens.Radius.button)
-                    .fill(DesignTokens.Colors.neonBlue.opacity(0.2))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: DesignTokens.Radius.button)
-                            .stroke(DesignTokens.Colors.neonBlue, lineWidth: 1)
+                DesignTokens.Colors.neonPink
+                    .shadow(
+                        color: DesignTokens.Colors.neonPink.opacity(0.6),
+                        radius: 10,
+                        x: 0,
+                        y: 0
                     )
             )
+            .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.button))
+            .overlay(
+                RoundedRectangle(cornerRadius: DesignTokens.Radius.button)
+                    .stroke(DesignTokens.Colors.pureWhite, lineWidth: 2)
+            )
+            .rotationEffect(.degrees(-15))
     }
 }
 
-// MARK: - Swipe Badge
-struct SwipeBadge: View {
-    enum BadgeType {
-        case like
-        case pass
-        
-        var color: Color {
-            switch self {
-            case .like:
-                return DesignTokens.Colors.neonPink
-            case .pass:
-                return DesignTokens.Colors.gray600
-            }
-        }
-        
-        var icon: String {
-            switch self {
-            case .like:
-                return "heart.fill"
-            case .pass:
-                return "xmark"
-            }
-        }
-        
-        var text: String {
-            switch self {
-            case .like:
-                return "LIKE"
-            case .pass:
-                return "PASS"
-            }
-        }
-    }
-    
-    let type: BadgeType
-    let opacity: Double
-    
+// MARK: - Pass Badge Component
+private struct PassBadge: View {
     var body: some View {
-        VStack(spacing: DesignTokens.Spacing.sm) {
-            Image(systemName: type.icon)
-                .font(.system(size: 40, weight: .bold))
-                .foregroundColor(type.color)
-            
-            Text(type.text)
-                .font(DesignTokens.Typography.heading)
-                .fontWeight(.bold)
-                .foregroundColor(type.color)
-        }
-        .padding(DesignTokens.Spacing.xl)
-        .background(
-            RoundedRectangle(cornerRadius: DesignTokens.Radius.card)
-                .fill(DesignTokens.Colors.pureWhite)
-                .shadow(
-                    color: type.color.opacity(0.3),
-                    radius: 10,
-                    x: 0,
-                    y: 5
-                )
-        )
-        .opacity(opacity)
-        .scaleEffect(0.8 + (opacity * 0.2)) // Animation de scale basée sur l'opacité
+        Text("PASS")
+            .font(DesignTokens.Typography.headingFont)
+            .fontWeight(.black)
+            .foregroundStyle(DesignTokens.Colors.pureWhite)
+            .padding(.horizontal, DesignTokens.Spacing.lg)
+            .padding(.vertical, DesignTokens.Spacing.md)
+            .background(
+                DesignTokens.Colors.gray600
+                    .shadow(
+                        color: DesignTokens.Colors.gray600.opacity(0.6),
+                        radius: 10,
+                        x: 0,
+                        y: 0
+                    )
+            )
+            .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.button))
+            .overlay(
+                RoundedRectangle(cornerRadius: DesignTokens.Radius.button)
+                    .stroke(DesignTokens.Colors.pureWhite, lineWidth: 2)
+            )
+            .rotationEffect(.degrees(15))
     }
 }
 
-// MARK: - Previews
-#Preview {
-    EventCardView(
-        event: Event(
-            title: "Techno Night à La Bellevilloise",
-            description: "Une soirée techno inoubliable",
-            imageURL: URL(string: "https://example.com/event.jpg"),
-            date: Date().addingTimeInterval(3600 * 24),
-            location: EventLocation(
-                name: "La Bellevilloise",
-                address: "19-21 Rue Boyer",
-                city: "Paris",
-                coordinate: Coordinate(latitude: 48.8566, longitude: 2.3522)
-            ),
-            lineup: [
-                Artist(name: "Charlotte de Witte", genre: "Techno")
-            ],
-            genres: ["Techno", "Electronic"],
-            price: Price(amount: 25.0),
-            ticketURL: URL(string: "https://example.com/tickets"),
-            distance: 2.3
-        ),
-        likeOpacity: 0.5
-    )
-    .frame(width: 350, height: 600)
+// MARK: - Preview
+#Preview("Event Card") {
+    VStack {
+        EventCardView(
+            event: Event.mockEvents[0],
+            onLike: { print("Liked!") },
+            onPass: { print("Passed!") },
+            onTap: { print("Tapped!") }
+        )
+        .frame(width: 350, height: 500)
+        
+        Spacer()
+    }
+    .padding()
     .background(DesignTokens.Colors.nightBlack)
+    .preferredColorScheme(.dark)
+}
+
+#Preview("Event Card Stack") {
+    ZStack {
+        ForEach(Array(Event.mockEvents.enumerated()), id: \.offset) { index, event in
+            EventCardView(
+                event: event,
+                onLike: { print("Liked \(event.title)") },
+                onPass: { print("Passed \(event.title)") }
+            )
+            .frame(width: 350, height: 500)
+            .scaleEffect(
+                index == 0 ? 1.0 :
+                index == 1 ? 0.97 :
+                0.94
+            )
+            .offset(y: CGFloat(index * 4))
+            .zIndex(Double(Event.mockEvents.count - index))
+        }
+    }
+    .padding()
+    .background(DesignTokens.Colors.nightBlack)
+    .preferredColorScheme(.dark)
 } 

@@ -1,59 +1,160 @@
 import SwiftUI
+import UIKit
 
-// MARK: - Design Tokens
+// MARK: - Design System Soirées Swipe
+// Version 1.0 - Juillet 2025
+// Palette Dark-mode only selon spécifications
+
 public struct DesignTokens {
     
-    // MARK: - Colors
+    // MARK: - Colors Palette
     public struct Colors {
-        public static let nightBlack = Color(hex: "#0B0B0E")
-        public static let neonPink = Color(hex: "#FF2D95")
-        public static let neonBlue = Color(hex: "#2DF9FF")
-        public static let pureWhite = Color(hex: "#FFFFFF")
-        public static let gray600 = Color(hex: "#7A7A7D")
+        // Couleurs principales selon spec
+        public static let nightBlack = Color(hex: "#0B0B0E")      // Background global
+        public static let neonPink = Color(hex: "#FF2D95")        // Accent like & CTA
+        public static let neonBlue = Color(hex: "#2DF9FF")        // Accent secondaire (groupes)
+        public static let pureWhite = Color(hex: "#FFFFFF")       // Texte principal
+        public static let gray600 = Color(hex: "#7A7A7D")         // Sous-titres / séparateurs
+        
+        // Couleurs dérivées pour l'UI
+        public static let backgroundPrimary = nightBlack
+        public static let backgroundSecondary = Color(hex: "#1A1A1E")
+        public static let accentPrimary = neonPink
+        public static let accentSecondary = neonBlue
+        public static let textPrimary = pureWhite
+        public static let textSecondary = gray600
+        
+        // États des boutons
+        public static let buttonPrimary = neonPink
+        public static let buttonSecondary = neonBlue
+        public static let buttonDestructive = Color(hex: "#FF453A")
+        
+        // États d'interaction
+        public static let likeColor = neonPink
+        public static let passColor = gray600
+        public static let successColor = Color(hex: "#30D158")
+        public static let warningColor = Color(hex: "#FF9500")
     }
     
-    // MARK: - Typography
+    // MARK: - Typography (SF Pro Rounded)
     public struct Typography {
-        public static let title = Font.custom("SF Pro Rounded", size: 28).weight(.bold)
-        public static let heading = Font.custom("SF Pro Rounded", size: 22).weight(.semibold)
-        public static let body = Font.custom("SF Pro Rounded", size: 17).weight(.regular)
-        public static let caption = Font.custom("SF Pro Rounded", size: 15).weight(.regular)
+        // Tailles selon spec
+        public static let titleFont = Font.system(size: 28, weight: .bold, design: .rounded)
+        public static let headingFont = Font.system(size: 22, weight: .semibold, design: .rounded)
+        public static let bodyFont = Font.system(size: 17, weight: .regular, design: .rounded)
+        public static let captionFont = Font.system(size: 15, weight: .regular, design: .rounded)
+        
+        // Variantes utiles
+        public static let largeTitleFont = Font.system(size: 34, weight: .bold, design: .rounded)
+        public static let subheadlineFont = Font.system(size: 15, weight: .medium, design: .rounded)
+        public static let footnoteFont = Font.system(size: 13, weight: .regular, design: .rounded)
+        public static let calloutFont = Font.system(size: 16, weight: .medium, design: .rounded)
     }
     
-    // MARK: - Spacing
+    // MARK: - Spacing (multiples de 4)
     public struct Spacing {
-        public static let xs: CGFloat = 4
-        public static let sm: CGFloat = 8
-        public static let md: CGFloat = 12
-        public static let lg: CGFloat = 16
-        public static let xl: CGFloat = 24
-        public static let xxl: CGFloat = 32
+        public static let xxs: CGFloat = 4
+        public static let xs: CGFloat = 8
+        public static let sm: CGFloat = 12
+        public static let md: CGFloat = 16
+        public static let lg: CGFloat = 24
+        public static let xl: CGFloat = 32
+        public static let xxl: CGFloat = 48
+        public static let xxxl: CGFloat = 64
+        
+        // Spacings spécifiques
+        public static let cardPadding: CGFloat = md
+        public static let sectionSpacing: CGFloat = lg
+        public static let elementSpacing: CGFloat = sm
     }
     
-    // MARK: - Radius
+    // MARK: - Corner Radius
     public struct Radius {
-        public static let card: CGFloat = 20
-        public static let button: CGFloat = 12
+        public static let card: CGFloat = 20        // Cards selon spec
+        public static let button: CGFloat = 12      // Boutons selon spec
+        public static let small: CGFloat = 8
+        public static let medium: CGFloat = 16
+        public static let large: CGFloat = 24
+        public static let pill: CGFloat = 100       // Pour boutons pill
     }
     
-    // MARK: - Animations
+    // MARK: - Shadows & Effects
+    public struct Shadow {
+        public static let card = Shadow(
+            color: Color.black.opacity(0.3),
+            radius: 8,
+            x: 0,
+            y: 4
+        )
+        
+        public static let button = Shadow(
+            color: Color.black.opacity(0.2),
+            radius: 4,
+            x: 0,
+            y: 2
+        )
+        
+        public static let overlay = Shadow(
+            color: Color.black.opacity(0.5),
+            radius: 12,
+            x: 0,
+            y: 8
+        )
+    }
+    
+    // MARK: - Animation Specs
     public struct Animation {
-        public static let spring = SwiftUI.Animation.interactiveSpring(
+        // Animations selon spec : Spring & InteractiveSpring
+        public static let cardSwipe = SwiftUI.Animation.interactiveSpring(
             response: 0.35,
             dampingFraction: 0.7
         )
-        public static let swipeThreshold: CGFloat = 120
-        public static let likeThreshold: CGFloat = 40
         
-        public struct CardScale {
-            public static let background: CGFloat = 0.94
-            public static let middle: CGFloat = 0.97
-            public static let front: CGFloat = 1.0
-        }
+        public static let standardSpring = SwiftUI.Animation.spring(
+            response: 0.4,
+            dampingFraction: 0.8
+        )
+        
+        public static let quickSpring = SwiftUI.Animation.spring(
+            response: 0.2,
+            dampingFraction: 0.9
+        )
+        
+        public static let fadeInOut = SwiftUI.Animation.easeInOut(duration: 0.3)
+        public static let scaleEffect = SwiftUI.Animation.easeOut(duration: 0.2)
+    }
+    
+    // MARK: - Z-Index Layers
+    public struct ZIndex {
+        public static let background: Double = 0
+        public static let content: Double = 1
+        public static let card: Double = 2
+        public static let overlay: Double = 3
+        public static let navigation: Double = 4
+        public static let modal: Double = 5
+        public static let alert: Double = 6
+        public static let debug: Double = 999
+    }
+    
+    // MARK: - Swipe Thresholds
+    public struct SwipeThresholds {
+        public static let actionThreshold: CGFloat = 120  // Seuil 120pt selon spec
+        public static let previewThreshold: CGFloat = 40   // Badge fade in
+        public static let maxRotation: Double = 5          // Rotation ±5° selon spec
+        public static let cardScale: (background: CGFloat, middle: CGFloat, top: CGFloat) = (0.94, 0.97, 1.0)
+    }
+    
+    // MARK: - Haptic Feedback
+    public struct Haptics {
+        public static let light = UIImpactFeedbackGenerator(style: .light)
+        public static let medium = UIImpactFeedbackGenerator(style: .medium)
+        public static let heavy = UIImpactFeedbackGenerator(style: .heavy)
+        public static let success = UINotificationFeedbackGenerator()
+        public static let selection = UISelectionFeedbackGenerator()
     }
 }
 
-// MARK: - Color Extension
+// MARK: - Color Extension pour Hex
 extension Color {
     init(hex: String) {
         let hex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
@@ -78,5 +179,55 @@ extension Color {
             blue:  Double(b) / 255,
             opacity: Double(a) / 255
         )
+    }
+}
+
+// MARK: - Shadow Helper Struct
+public struct Shadow {
+    let color: Color
+    let radius: CGFloat
+    let x: CGFloat
+    let y: CGFloat
+}
+
+// MARK: - View Modifiers pour Design System
+public extension View {
+    // Style de carte standard
+    func cardStyle() -> some View {
+        self
+            .background(DesignTokens.Colors.backgroundSecondary)
+            .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.card))
+            .shadow(
+                color: DesignTokens.Shadow.card.color,
+                radius: DesignTokens.Shadow.card.radius,
+                x: DesignTokens.Shadow.card.x,
+                y: DesignTokens.Shadow.card.y
+            )
+    }
+    
+    // Style de bouton primaire
+    func primaryButtonStyle() -> some View {
+        self
+            .font(DesignTokens.Typography.headingFont)
+            .foregroundStyle(DesignTokens.Colors.pureWhite)
+            .padding(.horizontal, DesignTokens.Spacing.lg)
+            .padding(.vertical, DesignTokens.Spacing.md)
+            .background(DesignTokens.Colors.accentPrimary)
+            .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.button))
+    }
+    
+    // Style de bouton secondaire
+    func secondaryButtonStyle() -> some View {
+        self
+            .font(DesignTokens.Typography.headingFont)
+            .foregroundStyle(DesignTokens.Colors.accentSecondary)
+            .padding(.horizontal, DesignTokens.Spacing.lg)
+            .padding(.vertical, DesignTokens.Spacing.md)
+            .background(DesignTokens.Colors.backgroundSecondary)
+            .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.button))
+            .overlay(
+                RoundedRectangle(cornerRadius: DesignTokens.Radius.button)
+                    .stroke(DesignTokens.Colors.accentSecondary, lineWidth: 1)
+            )
     }
 } 
