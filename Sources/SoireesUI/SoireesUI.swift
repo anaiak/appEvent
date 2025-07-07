@@ -3,6 +3,9 @@
 // Swift Package pour l'interface utilisateur de l'application iOS "Soirées Swipe"
 
 import SwiftUI
+import Foundation
+import Combine
+import CoreLocation
 
 // MARK: - Main Views
 @_exported import struct SwiftUI.SwipeView
@@ -51,7 +54,6 @@ public struct SoireesUI {
     
     /// Configuration de l'application
     public static func configure() {
-        // Configuration globale si nécessaire
         setupAppearance()
     }
     
@@ -77,7 +79,7 @@ public struct SoireesUI {
         UINavigationBar.appearance().scrollEdgeAppearance = navBarAppearance
         UINavigationBar.appearance().compactAppearance = navBarAppearance
         
-        // Configuration du tab bar (si utilisé)
+        // Configuration du tab bar
         let tabBarAppearance = UITabBarAppearance()
         tabBarAppearance.configureWithOpaqueBackground()
         tabBarAppearance.backgroundColor = UIColor(DesignTokens.Colors.nightBlack)
@@ -87,10 +89,11 @@ public struct SoireesUI {
     }
     
     /// Point d'entrée principal de l'application
+    @MainActor
     public static func makeRootView() -> some View {
         SwipeView()
             .environmentObject(SessionStore())
-            .preferredColorScheme(.dark) // Force le mode sombre
+            .preferredColorScheme(.dark)
     }
 }
 
@@ -121,28 +124,38 @@ extension Font {
 public struct SoireesPreviews {
     
     /// Événement de démonstration pour les previews
+    @MainActor
     public static let mockEvent = Event(
         title: "Techno Night à La Bellevilloise",
         description: "Une soirée techno inoubliable avec des DJs internationaux dans le cadre mythique de La Bellevilloise.",
-        imageURL: URL(string: "https://example.com/event.jpg"),
+        imageURL: "https://example.com/event.jpg",
         date: Date().addingTimeInterval(3600 * 24 * 2),
-        location: EventLocation(
+        venue: Venue(
             name: "La Bellevilloise",
             address: "19-21 Rue Boyer",
             city: "Paris",
-            coordinate: Coordinate(latitude: 48.8566, longitude: 2.3522)
+            postalCode: "75020",
+            coordinate: Coordinate(latitude: 48.8566, longitude: 2.3522),
+            distance: 2.3
+        ),
+        organizer: Organizer(
+            name: "La Bellevilloise",
+            verified: true
+        ),
+        musicGenres: [.techno, .electronic],
+        ticketInfo: TicketInfo(
+            minPrice: 25.0,
+            maxPrice: 35.0
         ),
         lineup: [
-            Artist(name: "Charlotte de Witte", genre: "Techno"),
-            Artist(name: "Amelie Lens", genre: "Techno")
+            Artist(name: "Charlotte de Witte", genres: [.techno]),
+            Artist(name: "Amelie Lens", genres: [.techno])
         ],
-        genres: ["Techno", "Electronic"],
-        price: Price(amount: 25.0),
-        ticketURL: URL(string: "https://example.com/tickets"),
-        distance: 2.3
+        ageRestriction: 18
     )
     
     /// Session store de démonstration pour les previews
+    @MainActor
     public static let mockSessionStore = SessionStore()
     
     /// Configuration pour les previews avec le theme sombre

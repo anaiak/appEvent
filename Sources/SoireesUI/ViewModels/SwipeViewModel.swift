@@ -17,36 +17,33 @@ public final class SwipeViewModel: ObservableObject {
     // MARK: - Private Properties
     private let eventService: EventServiceProtocol
     private var cancellables = Set<AnyCancellable>()
-    private let maxEventsInDeck: Int = 5
     
     // MARK: - Computed Properties
+    
+    /// Événement actuellement affiché
     public var currentEvent: Event? {
         guard currentEventIndex < events.count else { return nil }
         return events[currentEventIndex]
     }
     
-    public var nextEvent: Event? {
-        let nextIndex = currentEventIndex + 1
-        guard nextIndex < events.count else { return nil }
-        return events[nextIndex]
-    }
-    
-    public var hasCurrentEvent: Bool {
-        currentEvent != nil
-    }
-    
-    public var eventsInDeck: [Event] {
-        let endIndex = min(currentEventIndex + maxEventsInDeck, events.count)
-        guard currentEventIndex < endIndex else { return [] }
-        return Array(events[currentEventIndex..<endIndex])
-    }
-    
+    /// Progression dans le deck (0.0 à 1.0)
     public var progress: Double {
-        guard !events.isEmpty else { return 0 }
+        guard !events.isEmpty else { return 0.0 }
         return Double(currentEventIndex) / Double(events.count)
     }
     
+    /// Événements restants à swiper
+    public var remainingEventsCount: Int {
+        max(0, events.count - currentEventIndex)
+    }
+    
+    /// Indique si on peut revenir en arrière
+    public var canUndo: Bool {
+        currentEventIndex > 0
+    }
+    
     // MARK: - Initialization
+    
     public init(eventService: EventServiceProtocol = EventService()) {
         self.eventService = eventService
         setupErrorHandling()
@@ -62,55 +59,61 @@ public final class SwipeViewModel: ObservableObject {
         errorMessage = nil
         
         do {
-            let newEvents = try await eventService.fetchEvents(limit: 20)
-            self.events = newEvents
-            self.currentEventIndex = 0
-            self.hasMoreEvents = newEvents.count >= 20
+            let newEvents = try await eventService.fetchEvents(limit: 20, offset: 0)
+            events = newEvents
+            currentEventIndex = 0
+            hasMoreEvents = !newEvents.isEmpty
         } catch {
-            self.errorMessage = error.localizedDescription
+            errorMessage = error.localizedDescription
+            hasMoreEvents = false
         }
         
         isLoading = false
     }
     
-    /// Charge plus d'événements quand nécessaire
+    /// Charge plus d'événements si nécessaire
     public func loadMoreEventsIfNeeded() async {
-        // Charge plus d'événements quand il reste seulement 3 cartes
-        let remainingEvents = events.count - currentEventIndex
-        guard remainingEvents <= 3 && hasMoreEvents && !isLoading else { return }
+        // Charge plus d'événements quand il ne reste que 3 cartes
+        let remainingCards = events.count - currentEventIndex
         
-        await loadMoreEvents()
+        if remainingCards <= 3 && hasMoreEvents && !isLoading {
+            await loadMoreEvents()
+        }
     }
     
     /// Like un événement et passe au suivant
-    public func likeEvent() async {
+    public func likeCurrentEvent() async {
         guard let event = currentEvent else { return }
         
-        // Haptic feedback success
-        await MainActor.run {
-            DesignTokens.Haptics.success.notificationOccurred(.success)
-        }
+        // Feedback haptique immédiat
+        DesignTokens.Haptics.impact(.medium).impactOccurred()
         
         do {
+            // Envoie le like au backend
             try await eventService.likeEvent(event.id)
+            
+            // Passe à l'événement suivant
             await moveToNextEvent()
+            
         } catch {
             errorMessage = "Erreur lors du like: \(error.localizedDescription)"
         }
     }
     
     /// Passe un événement et passe au suivant
-    public func passEvent() async {
+    public func passCurrentEvent() async {
         guard let event = currentEvent else { return }
         
-        // Haptic feedback medium
-        await MainActor.run {
-            DesignTokens.Haptics.medium.impactOccurred()
-        }
+        // Feedback haptique plus léger
+        DesignTokens.Haptics.impact(.light).impactOccurred()
         
         do {
+            // Envoie le pass au backend
             try await eventService.passEvent(event.id)
+            
+            // Passe à l'événement suivant
             await moveToNextEvent()
+            
         } catch {
             errorMessage = "Erreur lors du pass: \(error.localizedDescription)"
         }
@@ -171,6 +174,56 @@ public final class SwipeViewModel: ObservableObject {
                 self?.errorMessage = nil
             }
             .store(in: &cancellables)
+    }
+}
+
+// MARK: - SwipeViewModel Extensions
+public extension SwipeViewModel {
+    
+    /// Statistiques pour le debug/analytics
+    var statistics: SwipeStatistics {
+        SwipeStatistics(
+            totalEvents: events.count,
+            currentIndex: currentEventIndex,
+            progress: progress,
+            hasMoreEvents: hasMoreEvents,
+            isLoading: isLoading
+        )
+    }
+}
+
+// MARK: - Swipe Statistics
+public struct SwipeStatistics {
+    public let totalEvents: Int
+    public let currentIndex: Int
+    public let progress: Double
+    public let hasMoreEvents: Bool
+    public let isLoading: Bool
+    
+    public var remainingEvents: Int {
+        max(0, totalEvents - currentIndex)
+    }
+    
+    public var completedEvents: Int {
+        currentIndex
+    }
+}
+
+// MARK: - Error Types
+public enum SwipeError: LocalizedError {
+    case noMoreEvents
+    case networkError(String)
+    case invalidEvent
+    
+    public var errorDescription: String? {
+        switch self {
+        case .noMoreEvents:
+            return "Plus d'événements disponibles"
+        case .networkError(let message):
+            return "Erreur réseau: \(message)"
+        case .invalidEvent:
+            return "Événement invalide"
+        }
     }
 }
 
@@ -259,55 +312,5 @@ public final class EventService: EventServiceProtocol {
         // Simule l'envoi d'un pass au backend
         try await Task.sleep(nanoseconds: 200_000_000) // 0.2 secondes
         print("❌ Event \(eventId) passed successfully")
-    }
-}
-
-// MARK: - SwipeViewModel Extensions
-public extension SwipeViewModel {
-    
-    /// Statistiques pour le debug/analytics
-    var statistics: SwipeStatistics {
-        SwipeStatistics(
-            totalEvents: events.count,
-            currentIndex: currentEventIndex,
-            progress: progress,
-            hasMoreEvents: hasMoreEvents,
-            isLoading: isLoading
-        )
-    }
-}
-
-// MARK: - Swipe Statistics
-public struct SwipeStatistics {
-    public let totalEvents: Int
-    public let currentIndex: Int
-    public let progress: Double
-    public let hasMoreEvents: Bool
-    public let isLoading: Bool
-    
-    public var remainingEvents: Int {
-        max(0, totalEvents - currentIndex)
-    }
-    
-    public var completedEvents: Int {
-        currentIndex
-    }
-}
-
-// MARK: - Error Types
-public enum SwipeError: LocalizedError {
-    case noMoreEvents
-    case networkError(String)
-    case invalidEvent
-    
-    public var errorDescription: String? {
-        switch self {
-        case .noMoreEvents:
-            return "Plus d'événements disponibles"
-        case .networkError(let message):
-            return "Erreur réseau: \(message)"
-        case .invalidEvent:
-            return "Événement invalide"
-        }
     }
 } 
