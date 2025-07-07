@@ -1,5 +1,7 @@
 import SwiftUI
+#if canImport(UIKit)
 import UIKit
+#endif
 
 // MARK: - Design System Tokens
 // Centralise tous les tokens de design selon les spécifications du mockup
@@ -165,11 +167,34 @@ public struct DesignTokens {
     
     // MARK: - Haptic Feedback
     public struct Haptics {
+        #if canImport(UIKit)
         public static let light = UIImpactFeedbackGenerator(style: .light)
         public static let medium = UIImpactFeedbackGenerator(style: .medium)
         public static let heavy = UIImpactFeedbackGenerator(style: .heavy)
         public static let success = UINotificationFeedbackGenerator()
         public static let selection = UISelectionFeedbackGenerator()
+        
+        public static func impact(_ style: UIImpactFeedbackGenerator.FeedbackStyle) -> UIImpactFeedbackGenerator {
+            return UIImpactFeedbackGenerator(style: style)
+        }
+        #else
+        // Fallback pour macOS/autres plateformes - pas de haptics
+        public struct MockHaptic {
+            public func impactOccurred() {}
+            public func selectionChanged() {}
+            public func notificationOccurred(_ type: Int) {}
+        }
+        
+        public static let light = MockHaptic()
+        public static let medium = MockHaptic()
+        public static let heavy = MockHaptic()
+        public static let success = MockHaptic()
+        public static let selection = MockHaptic()
+        
+        public static func impact(_ style: Int) -> MockHaptic {
+            return MockHaptic()
+        }
+        #endif
     }
 }
 
