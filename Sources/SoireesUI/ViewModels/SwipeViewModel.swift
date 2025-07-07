@@ -310,5 +310,4 @@ public enum SwipeError: LocalizedError {
             return "Événement invalide"
         }
     }
-} 
-} 
+} } 
