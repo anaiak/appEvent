@@ -24,16 +24,17 @@ struct SoireesSwipeAppApp: App {
 
 struct ContentView: View {
     var body: some View {
-        VStack {
-            Image(systemName: "party.popper")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
+        VStack(spacing: 20) {
+            Image(systemName: "star.fill")
+                .font(.largeTitle)
+                .foregroundColor(.yellow)
             Text("SoireesSwipeApp")
                 .font(.title)
                 .fontWeight(.bold)
+                .foregroundColor(.white)
             Text("Application de soirées")
-                .font(.subtitle)
-                .foregroundColor(.secondary)
+                .font(.body)
+                .foregroundColor(.gray)
         }
         .padding()
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -42,6 +43,10 @@ struct ContentView: View {
 }
 
 // MARK: - Preview
-#Preview {
-    ContentView()
-} 
+#if DEBUG
+struct ContentView_Previews: PreviewProvider {
+    static var previews: some View {
+        ContentView()
+    }
+}
+#endif 
