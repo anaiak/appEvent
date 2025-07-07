@@ -249,6 +249,7 @@ public enum MusicGenre: String, CaseIterable, Codable, Hashable {
     case techno = "Techno"
     case house = "House"
     case electro = "Electro"
+    case electronic = "Electronic"
     case minimal = "Minimal"
     case trance = "Trance"
     case dubstep = "Dubstep"
@@ -264,12 +265,14 @@ public enum MusicGenre: String, CaseIterable, Codable, Hashable {
     case garage = "Garage"
     case future = "Future"
     case experimental = "Experimental"
+    case hiphop = "Hip-Hop"
+    case rap = "Rap"
     
     public var emoji: String {
         switch self {
         case .techno, .hardTechno, .acidTechno: return "⚡"
         case .house, .deepHouse, .techHouse: return "🏠"
-        case .electro: return "🔊"
+        case .electro, .electronic: return "🔊"
         case .minimal: return "⚪"
         case .trance: return "🌀"
         case .dubstep: return "💥"
@@ -281,6 +284,7 @@ public enum MusicGenre: String, CaseIterable, Codable, Hashable {
         case .garage: return "🚗"
         case .future: return "🚀"
         case .experimental: return "🧪"
+        case .hiphop, .rap: return "🎤"
         }
     }
 }
@@ -378,6 +382,9 @@ public enum AgeRestriction: String, Codable, Hashable {
     case sixteenPlus = "16_plus"
     case eighteenPlus = "18_plus"
     case twentyOnePlus = "21_plus"
+    
+    /// Alias pour compatibilité
+    public static let eighteen = AgeRestriction.eighteenPlus
     
     public var displayText: String {
         switch self {

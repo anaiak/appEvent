@@ -6,6 +6,9 @@ import SwiftUI
 import Foundation
 import Combine
 import CoreLocation
+#if canImport(UIKit)
+import UIKit
+#endif
 
 // MARK: - Main Views
 @_exported import struct SwiftUI.SwipeView
@@ -46,77 +49,87 @@ import CoreLocation
 @_exported import enum Foundation.SwipeDirection
 @_exported import enum Foundation.SwipeError
 
-// MARK: - Public API
+// MARK: - Module Entry Point
+// Point d'entrée principal du module SoireesUI
+
 public struct SoireesUI {
+    private init() {}
     
-    /// Version de la librairie
-    public static let version = "1.0.0"
-    
-    /// Configuration de l'application
-    public static func configure() {
-        setupAppearance()
-    }
-    
-    /// Configuration de l'apparence globale
-    private static func setupAppearance() {
-        // Configuration des couleurs d'accent globales
-        UIView.appearance().tintColor = UIColor(DesignTokens.Colors.primary)
-        
-        // Configuration de la navigation bar
-        let navBarAppearance = UINavigationBarAppearance()
-        navBarAppearance.configureWithOpaqueBackground()
-        navBarAppearance.backgroundColor = UIColor(DesignTokens.Colors.surface)
-        navBarAppearance.titleTextAttributes = [
+    /// Configure l'apparence globale de l'application
+    public static func configureAppearance() {
+        #if canImport(UIKit)
+        // Configuration de l'apparence UIKit
+        let appearance = UINavigationBarAppearance()
+        appearance.configureWithTransparentBackground()
+        appearance.backgroundColor = UIColor(DesignTokens.Colors.backgroundPrimary)
+        appearance.titleTextAttributes = [
             .foregroundColor: UIColor(DesignTokens.Colors.textPrimary),
-            .font: UIFont.systemFont(ofSize: 22, weight: .semibold)
-        ]
-        navBarAppearance.largeTitleTextAttributes = [
-            .foregroundColor: UIColor(DesignTokens.Colors.textPrimary),
-            .font: UIFont.systemFont(ofSize: 28, weight: .bold)
+            .font: UIFont.systemFont(ofSize: 18, weight: .semibold)
         ]
         
-        UINavigationBar.appearance().standardAppearance = navBarAppearance
-        UINavigationBar.appearance().scrollEdgeAppearance = navBarAppearance
-        UINavigationBar.appearance().compactAppearance = navBarAppearance
+        UINavigationBar.appearance().standardAppearance = appearance
+        UINavigationBar.appearance().compactAppearance = appearance
+        UINavigationBar.appearance().scrollEdgeAppearance = appearance
         
-        // Configuration du tab bar
+        // Configuration TabBar
         let tabBarAppearance = UITabBarAppearance()
-        tabBarAppearance.configureWithOpaqueBackground()
-        tabBarAppearance.backgroundColor = UIColor(DesignTokens.Colors.surface)
+        tabBarAppearance.configureWithTransparentBackground()
+        tabBarAppearance.backgroundColor = UIColor(DesignTokens.Colors.backgroundPrimary)
         
         UITabBar.appearance().standardAppearance = tabBarAppearance
         UITabBar.appearance().scrollEdgeAppearance = tabBarAppearance
-    }
-    
-    /// Point d'entrée principal de l'application
-    @MainActor
-    public static func makeRootView() -> some View {
-        SwipeView()
-            .environmentObject(SessionStore())
-            .preferredColorScheme(.dark)
+        
+        // Couleur d'accent globale
+        UIView.appearance().tintColor = UIColor(DesignTokens.Colors.accentPrimary)
+        #endif
     }
 }
 
 // MARK: - Convenience Extensions
-extension Color {
-    /// Couleurs du design system pour un accès rapide
-    public struct Soirees {
-        public static let nightBlack = DesignTokens.Colors.nightBlack
-        public static let neonPink = DesignTokens.Colors.neonPink
-        public static let neonBlue = DesignTokens.Colors.neonBlue
-        public static let pureWhite = DesignTokens.Colors.pureWhite
-        public static let gray600 = DesignTokens.Colors.gray600
-    }
+public extension Color {
+    /// Couleurs d'accent rapides
+    static let neonPink = DesignTokens.Colors.accentPrimary
+    static let neonBlue = DesignTokens.Colors.accentSecondary
+    static let nightBlack = DesignTokens.Colors.backgroundPrimary
+    static let soireesGray = DesignTokens.Colors.textSecondary
 }
 
-extension Font {
-    /// Typographie du design system pour un accès rapide
-    public struct Soirees {
-        public static let title = DesignTokens.Typography.title
-        public static let heading = DesignTokens.Typography.heading
-        public static let body = DesignTokens.Typography.body
-        public static let caption = DesignTokens.Typography.caption
-    }
+// MARK: - Typography Extensions  
+public extension Font {
+    /// Typographies prédéfinies
+    static let soireesTitle = DesignTokens.Typography.heading1
+    static let soireesHeading = DesignTokens.Typography.heading2
+    static let soireesBody = DesignTokens.Typography.body
+    static let soireesCaption = DesignTokens.Typography.caption
+}
+
+// MARK: - Mock Data
+public extension Event {
+    /// Exemple d'événement pour les previews et tests
+    static let preview = Event(
+        id: UUID(),
+        title: "Techno Underground",
+        description: "Une nuit électrisante dans les souterrains de Paris avec les meilleurs DJs de la scène techno française.",
+        imageURL: "https://picsum.photos/400/600?random=1",
+        date: Calendar.current.date(byAdding: .day, value: 7, to: Date()) ?? Date(),
+        venue: Venue(
+            name: "Club Concrete",
+            address: "Port de la Gare, Quai François Mauriac",
+            city: "Paris",
+            postalCode: "75013",
+            coordinate: Coordinate(latitude: 48.8283, longitude: 2.3609),
+            distance: 2.4
+        ),
+        organizer: "Concrete Events",
+        musicGenres: [.techno, .house],
+        ticketInfo: TicketInfo(minPrice: 25, maxPrice: 35),
+        lineup: [
+            Artist(name: "Boris Brejcha", genres: [.techno]),
+            Artist(name: "Charlotte de Witte", genres: [.techno])
+        ],
+        ageRestriction: .eighteen,
+        attendeeCount: 850
+    )
 }
 
 // MARK: - SwiftUI Preview Helpers

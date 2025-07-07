@@ -26,10 +26,23 @@ public final class SwipeViewModel: ObservableObject {
         return events[currentEventIndex]
     }
     
-    /// Progression dans le deck (0.0 à 1.0)
+    /// Prochains événements dans le deck (maximum 3)
+    public var upcomingEvents: [Event] {
+        let startIndex = currentEventIndex + 1
+        let endIndex = min(startIndex + 3, events.count)
+        guard startIndex < events.count else { return [] }
+        return Array(events[startIndex..<endIndex])
+    }
+    
+    /// Progression à travers les événements (0.0 - 1.0)
     public var progress: Double {
         guard !events.isEmpty else { return 0.0 }
         return Double(currentEventIndex) / Double(events.count)
+    }
+    
+    /// Indique s'il reste des événements à swiper
+    public var hasEventsRemaining: Bool {
+        currentEventIndex < events.count || hasMoreEvents
     }
     
     /// Événements restants à swiper
@@ -53,30 +66,14 @@ public final class SwipeViewModel: ObservableObject {
     
     /// Charge les événements initiaux
     public func loadEvents() async {
-        guard !isLoading else { return }
-        
-        isLoading = true
-        errorMessage = nil
-        
-        do {
-            let newEvents = try await eventService.fetchNearbyEvents(location: nil, offset: 0)
-            events = newEvents
-            currentEventIndex = 0
-            hasMoreEvents = !newEvents.isEmpty
-        } catch {
-            errorMessage = error.localizedDescription
-            hasMoreEvents = false
-        }
-        
-        isLoading = false
+        await loadMoreEvents()
     }
     
-    /// Charge plus d'événements si nécessaire
-    public func loadMoreEventsIfNeeded() async {
-        // Charge plus d'événements quand il ne reste que 3 cartes
-        let remainingCards = events.count - currentEventIndex
-        
-        if remainingCards <= 3 && hasMoreEvents && !isLoading {
+    /// Charge plus d'événements si nécessaire (preloading)
+    private func loadMoreEventsIfNeeded() async {
+        // Charge plus d'événements quand il ne reste que 2 événements
+        let remainingEvents = events.count - currentEventIndex
+        if remainingEvents <= 2 && hasMoreEvents && !isLoading {
             await loadMoreEvents()
         }
     }
@@ -84,6 +81,9 @@ public final class SwipeViewModel: ObservableObject {
     /// Like un événement et passe au suivant
     public func likeCurrentEvent() async {
         guard let event = currentEvent else { return }
+        
+        // TODO: Implémenter la logique de like (sauvegarde, analytics, etc.)
+        print("❤️ Liked event: \(event.title)")
         
         // Feedback haptique immédiat
         DesignTokens.Haptics.impact(.medium).impactOccurred()
